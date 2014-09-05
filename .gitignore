@@ -1,0 +1,24 @@
+*~
+.*cmd
+.*ersions
+*.o
+*.ko
+*.order
+*.symvers
+*.mod.c
+*.lof
+*.bib
+*.bbl
+*.blg
+*.out
+*.a
+\#*\#
+*.sh
+.*.o.d
+Makefile.specific
+# eclipse files
+.pydevproject
+.cproject
+.project
+.settings
+TAGS*
