@@ -1,1 +1,67 @@
 This is the software support for the FPGA obs-box
+
+DEPENDENCIES
+============
+You can find all the software dependencies as sub-module of this repository:
+* fmc-bus : this is a carrier abstraction. It hides the differences between
+            carriers
+* spec-sw : it is not a real software dependency because you can compile the
+            driver without this sub-module. But, this is the carrier of our
+            FPGA, then we need this piece of software to run our FPGA
+* zio     : the driver use this acquisition framework to simplify the I/O
+            operations
+
+                  -------
+        ZIO <---> OBS-BOX <---> FMC-BUS <---> SPEC-SW <---> HARDWARE
+                  -------
+
+OBS-BOX CONFIGURATION
+=====================
+There are some sysfs attributes used for the driver configuration. Here I'm
+showing only that attributes used by this driver. For the meaning of all
+the other attributes please refer to the ZIO documentation.
+
+
+channel-set 0
+-------------
+/sys/bus/zio/devices/obs-box-XXXX/cset0/
+ob-run: 0 -> STOP acquisition, 1 -> RUN acquisition
+ob-streaming-enable: 0 -> single shot mode, 1 -> streaming mode
+
+
+trigger
+-------
+/sys/bus/zio/devices/obs-box-XXXX/cset0/trigger/
+post-samples: number of samples to acquire for each block (page size). It can
+              be configured only when the acquisition is not running. You can
+	      modify the value while the acquisition is running, but it will
+              be applied on reset (stop and start). For the time being you
+	      gain the best performance with 2M page size.
+
+
+ACQUISITION
+===========
+This is a ZIO driver, so refere to the ZIO documentation for the details.
+Here a rapid overview
+
+        /dev/zio/obsbox-0-0-ctrl
+        /dev/zio/obsbox-0-0-data
+
+With the first char device you read the control information. This file export
+block of 512 byte at time (no more, no less). It contains the details about
+the block of data ready on the second char device. In order to read it
+correctly you have to use the zio_control structure from "zio-user.h".
+
+       struct zio_control ctrl;
+       ...
+       read(fdctrl, &ctrl, sizeof(struct zio_control));
+
+Within the zio_control there are some useful information. For a simple
+acquisiton the number of bytes to read from the data char device
+
+       buffer = malloc(ctrl.ssize * ctrl.nsamples);
+       read(fddata, buffer, ctrl.ssize * ctrl.nsamples);
+
+A good example is the zio-dump program. You can find its source file in:
+
+       zio/tools/zio-dump.c
