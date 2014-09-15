@@ -2,7 +2,7 @@
 .PHONY: all clean modules install modules_install clean_all
 .PHONY: gitmodules prereq prereq_install prereq_install_warn prereq_clean
 
-DIRS = kernel
+DIRS = kernel tools
 
 all clean modules install modules_install: gitmodules
 	@if echo $@ | grep -q install; then $(MAKE) prereq_install_warn; fi
@@ -28,6 +28,7 @@ CURDIR ?= $(shell pwd)
 FMC_BUS ?= $(CURDIR)/fmc-bus
 export FMC_BUS
 ZIO ?= $(CURDIR)/zio
+export ZIO
 SPEC_SW ?= $(CURDIR)/spec-sw
 SUBMOD = $(FMC_BUS) $(ZIO) $(SPEC_SW)
 
