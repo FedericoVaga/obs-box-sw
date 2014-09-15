@@ -152,6 +152,7 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	if (unlikely(!status))
 		return IRQ_NONE;
 
+	/* DMA is over */
 	zio_dma_unmap_sg(ob->zdma);
 	zio_dma_free_sg(ob->zdma);
 
@@ -160,6 +161,7 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	spin_unlock(&cset->lock);
 
 	if (status & GNCORE_IRQ_DMA_DONE) {
+		/* DONE */
 		rearm = zio_trigger_data_done(cset);
 		dev_dbg(ob->fmc->hwdev, "Page acquired at 0x%x\n",
 			ob->last_acq_page);
@@ -171,6 +173,7 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 			ob_acquisition_command(ob, 0);
 		}
 	} else {
+		/* ERROR */
 		dev_err(ob->fmc->hwdev,
 			"Error during DMA transmission (counter %d)\n",
 			ob->errors);
@@ -198,6 +201,7 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 	if (unlikely(!(status & OBS_IRQ_ACQ)))
 		return IRQ_NONE;
 
+	/* Address of the ready page */
 	page = ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_ADDR]);
 
 	/* If the hardware is busy, do not waste other time */
@@ -207,12 +211,14 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 	}
 
 	if (likely((ob->zdev->cset->ti->flags & ZIO_TI_ARMED))) {
+		/* Configure and run DMA */
 		ob->last_acq_page = page;
 		dev_dbg(ob->fmc->hwdev, "Page ready at 0x%x\n",
 			 ob->last_acq_page);
 		ob_run_dma(ob, &ob->zdev->cset[0]);
 		ob->c_err = 0;
 	} else {
+		/* ZIO was not ready for this shot */
 		dev_warn(ob->fmc->hwdev,
 			 "ZIO trigger not configured, page lost (0x%x)\n",
 			 page);
@@ -230,6 +236,8 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 	ob->fmc->op->irq_ack(ob->fmc);
 	return IRQ_HANDLED;
 }
+
+
 
 /**
  * It registers DMA and OBS interrupts
@@ -253,7 +261,6 @@ int ob_init_irq(struct ob_dev *ob)
 					"obs-box-core",
 					0 /*VIC is used */);
 }
-
 
 /**
  * It releases DMA and OBS interrupts
