@@ -41,7 +41,7 @@ static int zio_calculate_nents(struct zio_blocks_sg *sg_blocks,
 	return nents;
 }
 
-static void zio_dma_setup_scatter(struct zio_dma_sg *zdma)
+static void zio_dma_setup_scatter(struct zio_dma_sgt *zdma)
 {
 	struct scatterlist *sg;
 	int bytesleft = 0;
@@ -102,23 +102,23 @@ static void zio_dma_setup_scatter(struct zio_dma_sg *zdma)
  * The function allocates and initializes a scatterlist ready for DMA
  * transfer
  */
-struct zio_dma_sg *zio_dma_alloc_sg(struct zio_channel *chan,
+struct zio_dma_sgt *zio_dma_alloc_sg(struct zio_channel *chan,
 				    struct device *hwdev,
 				    struct zio_block **blocks, /* FIXME to array */
 				    unsigned int n_blocks, gfp_t gfp)
 {
-	struct zio_dma_sg *zdma;
+	struct zio_dma_sgt *zdma;
 	unsigned int i, pages;
 	int err;
 
 	if (unlikely(!chan || !hwdev || !blocks || !n_blocks))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	/*
-	 * Allocate a new zio_dma_sg structure that will contains all necessary
+	 * Allocate a new zio_dma_sgt structure that will contains all necessary
 	 * information for DMA
 	 */
-	zdma = kzalloc(sizeof(struct zio_dma_sg), gfp);
+	zdma = kzalloc(sizeof(struct zio_dma_sgt), gfp);
 	if (!zdma)
 		return ERR_PTR(-ENOMEM);
 	zdma->chan = chan;
@@ -129,7 +129,7 @@ struct zio_dma_sg *zio_dma_alloc_sg(struct zio_channel *chan,
 		goto out;
 	}
 
-	/* fill the zio_dma_sg structure */
+	/* fill the zio_dma_sgt structure */
 	zdma->hwdev = hwdev;
 	zdma->n_blocks = n_blocks;
 	for (i = 0; i < n_blocks; ++i)
@@ -170,7 +170,7 @@ EXPORT_SYMBOL(zio_dma_alloc_sg);
  *
  * It releases resources
  */
-void zio_dma_free_sg(struct zio_dma_sg *zdma)
+void zio_dma_free_sg(struct zio_dma_sgt *zdma)
 {
 	kfree(zdma->sg_blocks);
 	kfree(zdma);
@@ -196,15 +196,13 @@ EXPORT_SYMBOL(zio_dma_free_sg);
  * @dev_mem_offset: offset within the device memory
  * @sg: current sg descriptor
  */
-int zio_dma_map_sg(struct zio_dma_sg *zdma, size_t page_desc_size,
-			int (*fill_desc)(struct zio_dma_sg *zdma, int page_idx,
-					 int block_idx, void *page_desc,
-					 uint32_t dev_mem_offset,
-					 struct scatterlist *sg))
+int zio_dma_map_sg(struct zio_dma_sgt *zdma, size_t page_desc_size,
+			int (*fill_desc)(struct zio_dma_sg *zsg))
 {
 	unsigned int i, err = 0, sglen, i_blk;
 	uint32_t dev_mem_off = 0;
 	struct scatterlist *sg;
+	struct zio_dma_sg zsg;
 	void *item_ptr;
 	size_t size;
 
@@ -250,7 +248,15 @@ int zio_dma_map_sg(struct zio_dma_sg *zdma, size_t page_desc_size,
 		}
 
 		item_ptr = zdma->page_desc_pool + (zdma->page_desc_size * i);
-		err = fill_desc(zdma, i, i_blk, item_ptr, dev_mem_off, sg);
+
+ 		/* Configure hardware pages */
+		zsg.zsgt = zdma;
+		zsg.sg = sg;
+		zsg.dev_mem_off = dev_mem_off;
+		zsg.page_desc = item_ptr;
+		zsg.block_idx = i_blk;
+		zsg.page_idx= i;
+		err = fill_desc(&zsg);
 		if (err) {
 			dev_err(zdma->hwdev, "Cannot fill descriptor %d\n", i);
 			goto out_fill_desc;
@@ -281,7 +287,7 @@ EXPORT_SYMBOL(zio_dma_map_sg);
  *
  * It unmaps a sg table
  */
-void zio_dma_unmap_sg(struct zio_dma_sg *zdma)
+void zio_dma_unmap_sg(struct zio_dma_sgt *zdma)
 {
 	size_t size;
 

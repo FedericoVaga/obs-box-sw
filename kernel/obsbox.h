@@ -39,7 +39,7 @@ struct ob_dev {
 	struct zio_device *hwzdev;
 	struct zio_device *zdev;
 
-	struct zio_dma_sg *zdma;
+	struct zio_dma_sgt *zdma;
 
 	unsigned int cur_page_size;
 	unsigned int last_acq_page;
