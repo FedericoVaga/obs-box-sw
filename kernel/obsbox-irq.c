@@ -118,7 +118,7 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 	getnstimeofday(&t[4]);
 
 	for (i = 0; i < 5; ++i) {
-		pr_info("%s:%d [%d] %d.%09d", __func__, __LINE__, i, t[i].tv_sec, t[i].tv_nsec);
+		pr_info("%s:%d [%d] %ld.%09ld", __func__, __LINE__, i, t[i].tv_sec, t[i].tv_nsec);
 	}
 	return;
 
@@ -145,7 +145,7 @@ static void ob_get_irq_status(struct ob_dev *ob, int irq_core_base,
 		"IRQ 0x%x fired an interrupt. IRQ status register: 0x%x\n",
 		irq_core_base, *irq_status);
 	getnstimeofday(&t);
-	pr_info("%s:%d 0x%x %d.%09d", __func__, __LINE__, irq_core_base, t.tv_sec, t.tv_nsec);
+	pr_info("%s:%d 0x%x %ld.%09ld", __func__, __LINE__, irq_core_base, t.tv_sec, t.tv_nsec);
 	if (*irq_status)
 		/* Clear current interrupts status */
 		ob_writel(ob, irq_core_base, &ob_regs[reg], *irq_status );
@@ -176,7 +176,7 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	cset->flags &= ~ZIO_CSET_HW_BUSY;
 	spin_unlock(&cset->lock);
 	getnstimeofday(&t);
-	pr_info("%s:%d %d.%09d", __func__, __LINE__, t.tv_sec, t.tv_nsec);
+	pr_info("%s:%d %ld.%09ld", __func__, __LINE__, t.tv_sec, t.tv_nsec);
 
 	if (status & GNCORE_IRQ_DMA_DONE) {
 		rearm = zio_trigger_data_done(cset);
