@@ -7,7 +7,6 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
-#include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
@@ -74,10 +73,8 @@ static int gncore_dma_fill(struct zio_dma_sg *zsg)
 static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 {
 	struct zio_block *blocks[1];
-	struct timespec t[5];
-	int err, i;
+	int err;
 
-	getnstimeofday(&t[0]);
 	blocks[0] = cset->chan[0].active_block;
 	if (unlikely(!blocks[0])) {
 		/* Invalid block - trigger has done */
@@ -90,8 +87,6 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 	cset->flags |= ZIO_CSET_HW_BUSY;
 	spin_unlock(&cset->lock);
 
-	getnstimeofday(&t[1]);
-
 
 	/* There is only one channel, so one blocks to transfer */
 	ob->zdma = zio_dma_alloc_sg(&cset->chan[0], ob->fmc->hwdev,
@@ -100,8 +95,6 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 		dev_err(ob->fmc->hwdev, "ZIO cannot allocate DMA memory\n");
 	        goto out_alloc;
 	}
-
-	getnstimeofday(&t[2]);
 
 	/* Set the correct device memory offset - is a single shot state machine */
 	ob->zdma->sg_blocks[0].dev_mem_off = ob->last_acq_page;
@@ -112,14 +105,9 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 		dev_err(ob->fmc->hwdev, "ZIO cannot map DMA memory (%d)\n", err);
 	        goto out_map;
 	}
-	getnstimeofday(&t[3]);
 	/* Start DMA transfer */
 	ob_writel(ob, ob->base_dma_core, &ob_regs[DMA_CTL_START], 1);
-	getnstimeofday(&t[4]);
 
-	for (i = 0; i < 5; ++i) {
-		pr_info("%s:%d [%d] %ld.%09ld", __func__, __LINE__, i, t[i].tv_sec, t[i].tv_nsec);
-	}
 	return;
 
 out_map:
@@ -137,15 +125,11 @@ static void ob_get_irq_status(struct ob_dev *ob, int irq_core_base,
 			      enum obsbox_registers reg,
 			      uint32_t *irq_status)
 {
-	struct timespec t;
-
 	/* Get current interrupts status */
 	*irq_status = ob_readl(ob, irq_core_base, &ob_regs[reg]);
 	dev_dbg(ob->fmc->hwdev,
 		"IRQ 0x%x fired an interrupt. IRQ status register: 0x%x\n",
 		irq_core_base, *irq_status);
-	getnstimeofday(&t);
-	pr_info("%s:%d 0x%x %ld.%09ld", __func__, __LINE__, irq_core_base, t.tv_sec, t.tv_nsec);
 	if (*irq_status)
 		/* Clear current interrupts status */
 		ob_writel(ob, irq_core_base, &ob_regs[reg], *irq_status );
@@ -161,7 +145,6 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	struct fmc_device *fmc = dev_id;
 	struct ob_dev *ob = fmc_get_drvdata(fmc);
 	struct zio_cset *cset = ob->zdev->cset;
-	struct timespec t;
 	uint32_t status;
 	int rearm;
 
@@ -175,8 +158,6 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	spin_lock(&cset->lock);
 	cset->flags &= ~ZIO_CSET_HW_BUSY;
 	spin_unlock(&cset->lock);
-	getnstimeofday(&t);
-	pr_info("%s:%d %ld.%09ld", __func__, __LINE__, t.tv_sec, t.tv_nsec);
 
 	if (status & GNCORE_IRQ_DMA_DONE) {
 		rearm = zio_trigger_data_done(cset);
