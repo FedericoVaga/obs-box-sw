@@ -65,3 +65,10 @@ acquisiton the number of bytes to read from the data char device
 A good example is the zio-dump program. You can find its source file in:
 
        zio/tools/zio-dump.c
+
+DEDICATED TOOL
+==============
+obsbox-dump
+-----------
+This is a simplification of the zio-dump program. It just prints out the
+data acquired from the device
