@@ -1,6 +1,7 @@
 /*
  * Copyright (c) CERN 2014
  * Author: Federico Vaga <federico.vaga@cern.ch>
+ * License: GPL v2
  */
 
 #ifndef __OBS_BOX_H__

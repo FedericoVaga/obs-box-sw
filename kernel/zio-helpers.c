@@ -1,6 +1,7 @@
 /*
  * Copyright CERN 2014
  * Author: Federico Vaga <federico.vaga@gmail.com>
+ * License: GPL v2
  *
  * handle DMA mapping
  */

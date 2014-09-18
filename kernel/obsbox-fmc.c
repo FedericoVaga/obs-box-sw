@@ -1,6 +1,7 @@
 /*
  * Copyright (c) CERN 2014
  * Author: Federico Vaga <federico.vaga@cern.ch>
+ * License: GPL v2
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -185,6 +186,6 @@ module_exit(ob_exit);
 MODULE_VERSION(GIT_VERSION); /* Defined in local Makefile */
 MODULE_AUTHOR("Federico Vaga <federico.vaga@cern.com>");
 MODULE_DESCRIPTION("OBS-BOX driver for ZIO framework");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 CERN_SUPER_MODULE;
