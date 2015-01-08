@@ -74,6 +74,12 @@ enum obsbox_parameters {
 
 enum obsbox_registers {
 	ACQ_CTRL_TX_DIS,
+	ACQ_CTRL_RST_GTP,
+	ACQ_CTRL_RST_RX,
+	ACQ_CTRL_RST_TX,
+	ACQ_CTRL_RST_CDR,
+	ACQ_CTRL_RST_ALG,
+	ACQ_CTRL_RST_BUF,
 	ACQ_PAGE_SIZE,
 	ACQ_PAGE_ADDR,
 	ACQ_MARK_ADDR,

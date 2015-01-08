@@ -38,6 +38,7 @@ static struct zio_attribute ob_cset_ext_zattr[] = {
 void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 {
 	struct zio_cset *cset = &ob->zdev->cset[0];
+	uint32_t ctrl;
 	int err;
 
 	if (cmd == 0) { /* Stop the acquisition */
@@ -49,6 +50,10 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		ob->done = 0;
 		ob->c_err = 0;
 		ob->errors = 0;
+
+		/* reset CSR */
+		ob_writel(ob, ob->base_obs_core, &ob_regs[ACQ_CTRL_RST_GTP], 1);
+		/* FIXME set RST_GTP to 0 again?*/
 
 		/* Configure page-size */
 		err = ob_set_page_size(ob, cset->ti->nsamples);
@@ -78,7 +83,7 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 
 
 /**
- * HACK
+ * FIXME HACK
  * It is a timer function. It is used to perform commands from sysfs. This is
  * necessary to avoid sysfs file freeze (I don't know the reasons)
  */

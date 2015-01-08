@@ -9,6 +9,12 @@
 const struct zio_field_desc ob_regs[] = {
 	/* CSR */
 	[ACQ_CTRL_TX_DIS] =      {0x00, 0x00000001, 1},
+	[ACQ_CTRL_RST_GTP] =      {0x00, 0x00000100, 1},
+	[ACQ_CTRL_RST_RX] =      {0x00, 0x00000200, 1},
+	[ACQ_CTRL_RST_TX] =      {0x00, 0x00000400, 1},
+	[ACQ_CTRL_RST_CDR] =     {0x00, 0x00000800, 1},
+	[ACQ_CTRL_RST_ALG] =     {0x00, 0x00001000, 1},
+	[ACQ_CTRL_RST_BUF] =     {0x00, 0x00002000, 1},
 	[ACQ_PAGE_SIZE] =        {0x18, 0xFFFFFFFF, 0},
 	[ACQ_PAGE_ADDR] =        {0x1C, 0xFFFFFFFF, 0},
 	[ACQ_MARK_ADDR] =        {0x20, 0xFFFFFFFF, 0},
