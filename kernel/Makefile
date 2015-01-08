@@ -28,7 +28,6 @@ obs-box-y = obsbox-zio.o
 obs-box-y += obsbox-irq.o
 obs-box-y += obsbox-fmc.o
 obs-box-y += obsbox-regtable.o
-obs-box-y += zio-helpers.o
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules

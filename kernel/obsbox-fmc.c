@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
+#include <linux/zio.h>
 
 #include "obsbox.h"
 

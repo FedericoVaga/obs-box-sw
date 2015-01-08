@@ -12,12 +12,12 @@
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
 #include <linux/zio.h>
+#include <linux/zio-dma.h>
 #include <linux/zio-sysfs.h>
 #include <linux/zio-buffer.h>
 #include <linux/zio-trigger.h>
 
 #include "obsbox.h"
-#include "zio-helpers.h"
 
 static int gncore_dma_fill(struct zio_dma_sg *zsg)
 {

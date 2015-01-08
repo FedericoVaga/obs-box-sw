@@ -7,7 +7,7 @@
 #ifndef __OBS_BOX_H__
 #define __OBS_BOX_H__
 #include <linux/fmc.h>
-#include "zio-helpers.h"
+#include <linux/zio.h>
 
 #define OB_DEFAULT_GATEWARE "fmc/spec-rf-obs-box.bin"
 #define OB_MAX_PAGE_SIZE 0x8000000 /* 128MB - half the SPEC memory */
