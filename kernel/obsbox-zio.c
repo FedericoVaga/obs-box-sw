@@ -112,15 +112,7 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		err = ob_set_page_size(ob, cset->ti->nsamples);
 		if (err)
 			return;
-		/*
-		 * HACK
-		 * due to a FPGA problem whe must wait a little bit after
-		 * configuring the page size and after disabling
-		 * the interrupts
-		 */
-		udelay(10000);
 		ob_disable_irq(ob);
-		udelay(10000);
 
 		/* Arm the ZIO trigger (we are self timed) */
 		zio_arm_trigger(cset->ti);
