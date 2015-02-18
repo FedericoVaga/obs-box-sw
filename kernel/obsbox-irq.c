@@ -63,7 +63,7 @@ static int gncore_dma_fill(struct zio_dma_sg *zsg)
 			  &ob_regs[DMA_BR_LAST], item->attribute);
 	}
 
-	dev_dbg(zsg->zsgt->hwdev, "configure DMA item %d (block %d)"
+	dev_vdbg(zsg->zsgt->hwdev, "configure DMA item %d (block %d)"
 		"(addr: 0x%llx len: %d)(dev off: 0x%x) (next item: 0x%x)\n",
 		zsg->page_idx, zsg->block_idx, (long long)sg_dma_address(sg),
 		sg_dma_len(sg), zsg->dev_mem_off, item->next_addr_l);
@@ -128,7 +128,7 @@ static void ob_get_irq_status(struct ob_dev *ob, int irq_core_base,
 {
 	/* Get current interrupts status */
 	*irq_status = ob_readl(ob, irq_core_base, &ob_regs[reg]);
-	dev_dbg(ob->fmc->hwdev,
+	dev_vdbg(ob->fmc->hwdev,
 		"IRQ 0x%x fired an interrupt. IRQ status register: 0x%x\n",
 		irq_core_base, *irq_status);
 	if (*irq_status)
@@ -205,17 +205,17 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 	/* Address of the ready page */
 	page = ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_ADDR]);
 
+	dev_dbg(ob->fmc->hwdev, "Acquisition of page 0x%x\n", page);
 	/* If the hardware is busy, do not waste other time */
 	if(ob->zdev->cset[0].flags & ZIO_CSET_HW_BUSY) {
-		dev_warn(ob->fmc->hwdev, "PAGE (0x%x) LOST - HW BUSY\n", page);
+		dev_warn(ob->fmc->hwdev,
+			 "PAGE LOST - HW BUSY - DMA running\n");
 		return IRQ_HANDLED;
 	}
 
 	if (likely((ob->zdev->cset->ti->flags & ZIO_TI_ARMED))) {
 		/* Configure and run DMA */
 		ob->last_acq_page = page;
-		dev_dbg(ob->fmc->hwdev, "Page ready at 0x%x\n",
-			 ob->last_acq_page);
 		ob_run_dma(ob, &ob->zdev->cset[0]);
 		ob->c_err = 0;
 	} else {
