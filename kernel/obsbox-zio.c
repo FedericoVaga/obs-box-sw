@@ -38,7 +38,6 @@ static struct zio_attribute ob_cset_ext_zattr[] = {
 void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 {
 	struct zio_cset *cset = &ob->zdev->cset[0];
-	uint32_t ctrl;
 	int err;
 
 	if (cmd == 0) { /* Stop the acquisition */
