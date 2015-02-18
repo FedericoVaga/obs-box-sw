@@ -36,6 +36,50 @@ static struct zio_attribute ob_cset_ext_zattr[] = {
 	ZIO_PARAM_EXT("ob-streaming-enable", ZIO_RW_PERM, OB_PARM_STREAM, 1),
 };
 
+
+/**
+ * Align the serdes
+ */
+static void ob_align(struct ob_dev *ob)
+{
+	ob_writel(ob, ob->base_obs_core, &ob_regs[ACQ_CTRL_RST_CDR], 1);
+	udelay(2000);
+	ob_writel(ob, ob->base_obs_core, &ob_regs[ACQ_CTRL_RST_ALG], 1);
+	udelay(2000);
+	ob_writel(ob, ob->base_obs_core, &ob_regs[ACQ_CTRL_RST_BUF], 1);
+	udelay(2000);
+}
+
+
+/**
+ * Wait until the serdes is aligned
+ * @return 0 on succes, -1 on error (not aligned)
+ */
+#define OB_ALIGN_TRY 30
+#define OB_ALIGN_UDELAY 1000
+static int ob_wait_aligned(struct ob_dev *ob)
+{
+	int i;
+	uint32_t val;
+
+	for (i = 0; i < OB_ALIGN_TRY; ++i) {
+		val = ob_readl(ob, ob->base_obs_core,
+			       &ob_regs[ACQ_STS_SFP_ALIGNED]);
+		if (val) {
+			dev_info(&ob->zdev->head.dev,
+				 "SERDES interface alignment: success\n");
+			return 0;
+		}
+		udelay(OB_ALIGN_UDELAY);
+	}
+
+	dev_warn(&ob->zdev->head.dev,
+		 "SERDES interface alignment: fail after %dus\n",
+		 (OB_ALIGN_TRY * OB_ALIGN_UDELAY));
+	return -1;
+}
+
+
 void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 {
 	struct zio_cset *cset = &ob->zdev->cset[0];
@@ -52,8 +96,10 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		ob->errors = 0;
 
 		/* reset CSR */
-		ob_writel(ob, ob->base_obs_core, &ob_regs[ACQ_CTRL_RST_GTP], 1);
-		/* FIXME set RST_GTP to 0 again?*/
+		ob_align(ob);
+		err = ob_wait_aligned(ob);
+		if (err)
+			return;
 
 		/* Configure page-size */
 		err = ob_set_page_size(ob, cset->ti->nsamples);
