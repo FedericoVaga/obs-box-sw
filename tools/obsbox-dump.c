@@ -100,9 +100,15 @@ void print_buffer(uint8_t *buf, int start, int end)
 	putchar('\n');
 }
 
+
+/**
+ * Read and dump data from the driver
+ * @return number of byte read, -1 on error and errno is appropriately set.
+ */
 static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 {
 	struct zio_control zctrl;
+	struct timeval tv = {0, 1000};
 	fd_set ctrl_set;
 	uint8_t *buf;
 	int n, i;
@@ -110,13 +116,14 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 	/* Wait until a block is ready */
 	FD_ZERO(&ctrl_set);
 	FD_SET(fdc, &ctrl_set);
-	i = select(fdc + 1, &ctrl_set, NULL, NULL, NULL);
-	if (i < 0 && errno == EINTR)
-		return i;
+	i = select(fdc + 1, &ctrl_set, NULL, NULL, &tv);
 	if (i < 0) {
 		fprintf(stderr, "obd-dump: select(): %s\n",strerror(errno));
 		return -1;
 	}
+	if (i == 0) /* timeout */
+		return 0;
+
 
 	/* Read the block control information */
 	n = read(fdc, &zctrl, sizeof(struct zio_control));
@@ -133,6 +140,7 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 		obd_write_cfg(ZPATH_ALARMS, devid, 0xFF);
 	}
 
+
 	/* read data */
 	buf = malloc(zctrl.nsamples * zctrl.ssize);
 	if (!buf) {
@@ -140,6 +148,7 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 		return -1;
 	}
 	n = read(fdd, buf, zctrl.nsamples * zctrl.ssize);
+
 
 	/* report data to stdout */
 	if (reduce == -1) {
@@ -150,15 +159,15 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 		print_buffer(buf, n - reduce, n);
 	}
 
-	return 0;
+	return n;
 }
 
-
+#define DUMP_TRY 10
 int main(int argc, char **argv)
 {
 	char c, path[128];
 	int ret, streaming = 0, n = -1, fdd, fdc;
-	int reduce;
+	int reduce, try = DUMP_TRY;
 	uint32_t devid, page_size;
 
 	/* Parse options */
@@ -204,7 +213,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (!streaming)
+	if (!streaming && n == -1)
 		n = 1;
 
 	/* Open ZIO char-devices */
@@ -216,15 +225,38 @@ int main(int argc, char **argv)
 	if (!fdd || !fdc)
 		goto out;
 
-	obd_write_cfg(ZPATH_CMD_RUN, devid, 1);
-	while (n) {
+	if (streaming) {
+		/*
+		 * In streaming mode we start the acquisition only one time
+		 * before the acquisition
+		 */
+		obd_write_cfg(ZPATH_CMD_RUN, devid, 1);
+		fprintf(stdout, "Start acquisition in streaming mode\n");
+	}
+	while (n && try) {
+		printf("Acquisizione %d (try %d)\n", n, DUMP_TRY - try);
+		if (!streaming) {
+			/*
+			 * In case of single-shot mode we have to start
+			 * the acquisition for every block
+			 */
+			obd_write_cfg(ZPATH_CMD_RUN, devid, 1);
+		}
 		ret = obd_block_dump(devid, fdd, fdc, reduce);
 		if (ret < 0)
 			break;
+		if (ret == 0) {
+			try--;
+			continue;
+		} else {
+			try = DUMP_TRY;
+		}
 		if (n > 0)
 			n--;
 	}
 
+	if (!try)
+		fprintf(stderr, "Fail %d times to acquire a page\n", DUMP_TRY);
 	close(fdd);
 	close(fdc);
 	obd_write_cfg(ZPATH_CMD_RUN, devid, 0);
