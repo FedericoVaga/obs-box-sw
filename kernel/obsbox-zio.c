@@ -130,8 +130,6 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		dev_dbg(ob->fmc->hwdev, "Start acquisition\n");
 		ob_enable_irq(ob);
 	}
-	/* FIXME It was necessary on old firmware, is still necessary? */
-	/*ob_writel(ob, ob->base_obs_core, &ob_regs[ACQ_CTRL_TX_DIS], cmd);*/
 }
 
 
@@ -235,6 +233,7 @@ static int ob_probe(struct zio_device *zdev)
 	ob->cur_page_size = zdev->cset->ti->nsamples;
 	ob_writel(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_SIZE],
 		  ob->cur_page_size);
+	ob_writel(ob, ob->base_obs_core, &ob_regs[ACQ_CTRL_TX_DIS], 0);
 
 	/* Enable DMA and OBS interrupts */
 	ob_init_irq(ob);
