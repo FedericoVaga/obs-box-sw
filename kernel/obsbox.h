@@ -50,7 +50,6 @@ struct ob_dev {
 	unsigned int c_err; /**< consectutive errors */
 	unsigned int done;
 
-	struct timer_list tm;
 	struct spinlock lock;
 
 	/* Base addresses */

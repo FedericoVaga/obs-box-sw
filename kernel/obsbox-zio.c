@@ -85,6 +85,13 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 	struct zio_cset *cset = &ob->zdev->cset[0];
 	int err;
 
+	spin_lock(&ob->lock);
+	if (cmd == 0)
+		ob->flags &= ~OB_FLAG_RUNNING;
+	else
+		ob->flags |= OB_FLAG_RUNNING;
+	spin_unlock(&ob->lock);
+
 	if (cmd == 0) { /* Stop the acquisition */
 		dev_dbg(ob->fmc->hwdev, "Stop acquisition\n");
 		ob_disable_irq(ob);
@@ -129,19 +136,6 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 
 
 /**
- * FIXME HACK
- * It is a timer function. It is used to perform commands from sysfs. This is
- * necessary to avoid sysfs file freeze (I don't know the reasons)
- */
-static void ob_start(unsigned long arg)
-{
-	struct ob_dev *ob = (void *)arg;
-
-	ob_acquisition_command(ob, !!(ob->flags & OB_FLAG_RUNNING) );
-}
-
-
-/**
  * It sets parameters' values
  */
 static int ob_conf_set(struct device *dev, struct zio_attribute *zattr,
@@ -152,15 +146,12 @@ static int ob_conf_set(struct device *dev, struct zio_attribute *zattr,
 
 	switch(zattr->id) {
 	case OB_PARM_RUN: /* Run/Stop acquisition */
-		spin_lock(&ob->lock);
-		if (usr_val == 0)
-			ob->flags &= ~OB_FLAG_RUNNING;
-		else
-			ob->flags |= OB_FLAG_RUNNING;
-		spin_unlock(&ob->lock);
-		mod_timer(&ob->tm, jiffies + msecs_to_jiffies(1000));
+		ob_acquisition_command(ob, !!usr_val);
 		break;
 	case OB_PARM_STREAM: /* Enable/Disable streaming */
+		/* Disable acquisition when mode change */
+		ob_acquisition_command(ob, 0);
+
 		spin_lock(&cset->lock);
 		if (usr_val)
 			cset->flags |= ZIO_CSET_SELF_TIMED;
@@ -233,7 +224,6 @@ static int ob_probe(struct zio_device *zdev)
 	/* Save also the pointer to the real zio_device */
 	ob->zdev = zdev;
 	spin_lock_init(&ob->lock);
-	setup_timer(&ob->tm, ob_start, (unsigned long)ob);
 
 	/* Enable streaming by default - let do it here to avoid autostart */
 	ob->zdev->cset[0].flags |= ZIO_CSET_SELF_TIMED;
