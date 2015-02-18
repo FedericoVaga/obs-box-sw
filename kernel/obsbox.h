@@ -68,6 +68,7 @@ struct zio_field_desc {
 };
 
 enum obsbox_parameters {
+	OB_ALIGNED,
 	OB_PARM_RUN,
 	OB_PARM_STREAM,
 };

@@ -23,6 +23,7 @@
  * Parameters
  */
 static struct zio_attribute ob_cset_ext_zattr[] = {
+	ZIO_ATTR_EXT("aligned", ZIO_RO_PERM, OB_ALIGNED, 0),
 	/*
 	 * 0: stop
 	 * 1: start/restart
@@ -136,6 +137,10 @@ static int ob_info_get(struct device *dev, struct zio_attribute *zattr,
 	struct ob_dev *ob = cset->zdev->priv_d;
 
 	switch(zattr->id) {
+	case OB_ALIGNED:
+		*usr_val = !!ob_readl(ob, ob->base_obs_core,
+				      &ob_regs[ACQ_STS_SFP_ALIGNED]);
+		break;
 	case OB_PARM_RUN:
 		*usr_val = !!(ob->flags & OB_FLAG_RUNNING);
 		break;
