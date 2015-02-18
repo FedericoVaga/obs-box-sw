@@ -92,9 +92,10 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		ob->flags |= OB_FLAG_RUNNING;
 	spin_unlock(&ob->lock);
 
+	/* Disable the interrupt in order to allow us to configure */
+	ob_disable_irq(ob);
 	if (cmd == 0) { /* Stop the acquisition */
 		dev_dbg(ob->fmc->hwdev, "Stop acquisition\n");
-		ob_disable_irq(ob);
 		zio_trigger_abort_disable(cset, 0);
 	} else { /* Start the acquisition */
 		/* Reset statistics counter */
@@ -112,7 +113,6 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		err = ob_set_page_size(ob, cset->ti->nsamples);
 		if (err)
 			return;
-		ob_disable_irq(ob);
 
 		/* Arm the ZIO trigger (we are self timed) */
 		zio_arm_trigger(cset->ti);
