@@ -69,10 +69,10 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		ob_disable_irq(ob);
 		udelay(10000);
 
-		/* Arm the ZIO trigger */
+		/* Arm the ZIO trigger (we are self timed) */
 		zio_arm_trigger(cset->ti);
 		if (!(cset->ti->flags & ZIO_TI_ARMED))
-		        return;
+			return;
 		/* Finally enable the acquisition by enabling the interrupts */
 		dev_dbg(ob->fmc->hwdev, "Start acquisition\n");
 		ob_enable_irq(ob);
