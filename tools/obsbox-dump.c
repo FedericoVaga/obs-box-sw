@@ -151,6 +151,7 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 
 
 	/* report data to stdout */
+	fprintf(stdout, "Page number %d\n", zctrl.seq_num);
 	if (reduce == -1) {
 		print_buffer(buf, 0, n);
 	} else {
@@ -234,7 +235,6 @@ int main(int argc, char **argv)
 		fprintf(stdout, "Start acquisition in streaming mode\n");
 	}
 	while (n && try) {
-		printf("Acquisition %d (try %d)\n", n, DUMP_TRY - try);
 		if (!streaming) {
 			/*
 			 * In case of single-shot mode we have to start
@@ -247,6 +247,7 @@ int main(int argc, char **argv)
 			break;
 		if (ret == 0) {
 			try--;
+			fprintf(stderr, "(try %d)\n", DUMP_TRY - try);
 			continue;
 		} else {
 			try = DUMP_TRY;
