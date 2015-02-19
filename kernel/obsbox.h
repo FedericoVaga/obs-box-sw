@@ -6,6 +6,7 @@
 
 #ifndef __OBS_BOX_H__
 #define __OBS_BOX_H__
+#include <linux/delay.h>
 #include <linux/fmc.h>
 #include <linux/zio.h>
 
@@ -175,6 +176,7 @@ static inline void ob_enable_irq(struct ob_dev *ob)
 		  OBS_IRQ_ACQ);
 	ob_writel(ob, ob->base_dma_irq, &ob_regs[IRQ_DMA_ENABLE_MASK],
 		  GNCORE_IRQ_DMA_ALL);
+	udelay(10000);
 	dev_dbg(ob->fmc->hwdev,"Enable interrupts - IRQ MASK 0x%x, 0x%x PAGE 0x%x\n",
 		 ob_readl(ob, ob->base_obs_irq, &ob_regs[IRQ_ACQ_MASK_STATUS]),
 		 ob_readl(ob, ob->base_dma_irq, &ob_regs[IRQ_DMA_MASK_STATUS]),
