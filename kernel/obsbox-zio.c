@@ -80,14 +80,15 @@ static int ob_wait_aligned(struct ob_dev *ob)
 void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 {
 	struct zio_cset *cset = &ob->zdev->cset[0];
+	unsigned long flags;
 	int err;
 
-	spin_lock(&ob->lock);
+	spin_lock_irqsave(&ob->lock, flags);
 	if (cmd == 0)
 		ob->flags &= ~OB_FLAG_RUNNING;
 	else
 		ob->flags |= OB_FLAG_RUNNING;
-	spin_unlock(&ob->lock);
+	spin_unlock_irqrestore(&ob->lock, flags);
 
 	/* Disable the interrupt in order to allow us to configure */
 	ob_disable_irq(ob);

@@ -74,6 +74,7 @@ static int gncore_dma_fill(struct zio_dma_sg *zsg)
 static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 {
 	struct zio_block *blocks[1];
+	unsigned long flags;
 	int err;
 
 	blocks[0] = cset->chan[0].active_block;
@@ -84,9 +85,9 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 	}
 
 	/* We are busy, we are starting DMA */
-	spin_lock(&cset->lock);
+	spin_lock_irqsave(&cset->lock, flags);
 	cset->flags |= ZIO_CSET_HW_BUSY;
-	spin_unlock(&cset->lock);
+	spin_unlock_irqrestore(&cset->lock, flags);
 
 
 	/* There is only one channel, so one blocks to transfer */
