@@ -171,30 +171,27 @@ static inline void ob_writel(struct ob_dev *ob,
 
 static inline void ob_enable_irq(struct ob_dev *ob)
 {
-	dev_info(ob->fmc->hwdev, "Enable interrupts\n");
 	ob_writel(ob, ob->base_obs_irq, &ob_regs[IRQ_ACQ_ENABLE_MASK],
 		  OBS_IRQ_ACQ);
 	ob_writel(ob, ob->base_dma_irq, &ob_regs[IRQ_DMA_ENABLE_MASK],
 		  GNCORE_IRQ_DMA_ALL);
-
-	pr_info("%s:%d IRQ MASK 0x%x, 0x%x PAGE 0x%x\n", __func__, __LINE__,
-		ob_readl(ob, ob->base_obs_irq, &ob_regs[IRQ_ACQ_MASK_STATUS]),
-		ob_readl(ob, ob->base_dma_irq, &ob_regs[IRQ_DMA_MASK_STATUS]),
-		ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_SIZE]));
+	dev_dbg(ob->fmc->hwdev,"Enable interrupts - IRQ MASK 0x%x, 0x%x PAGE 0x%x\n",
+		 ob_readl(ob, ob->base_obs_irq, &ob_regs[IRQ_ACQ_MASK_STATUS]),
+		 ob_readl(ob, ob->base_dma_irq, &ob_regs[IRQ_DMA_MASK_STATUS]),
+		 ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_SIZE]));
 }
 
 static inline void ob_disable_irq(struct ob_dev *ob)
 {
-	dev_info(ob->fmc->hwdev, "Disable interrupts\n");
 	ob_writel(ob, ob->base_obs_irq, &ob_regs[IRQ_ACQ_DISABLE_MASK],
 		  OBS_IRQ_ALL);
 	ob_writel(ob, ob->base_dma_irq, &ob_regs[IRQ_DMA_DISABLE_MASK],
 		  GNCORE_IRQ_DMA_ALL);
 
-	pr_info("%s:%d IRQ MASK 0x%x, 0x%x PAGE 0x%x\n", __func__, __LINE__,
-		ob_readl(ob, ob->base_obs_irq, &ob_regs[IRQ_ACQ_MASK_STATUS]),
-		ob_readl(ob, ob->base_dma_irq, &ob_regs[IRQ_DMA_MASK_STATUS]),
-		ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_SIZE]));
+	dev_dbg(ob->fmc->hwdev,"Disable interrupts - IRQ MASK 0x%x, 0x%x PAGE 0x%x\n",
+		 ob_readl(ob, ob->base_obs_irq, &ob_regs[IRQ_ACQ_MASK_STATUS]),
+		 ob_readl(ob, ob->base_dma_irq, &ob_regs[IRQ_DMA_MASK_STATUS]),
+		 ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_SIZE]));
 }
 
 static inline int ob_set_page_size(struct ob_dev *ob, uint32_t val)

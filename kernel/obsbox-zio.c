@@ -65,11 +65,8 @@ static int ob_wait_aligned(struct ob_dev *ob)
 	for (i = 0; i < OB_ALIGN_TRY; ++i) {
 		val = ob_readl(ob, ob->base_obs_core,
 			       &ob_regs[ACQ_STS_SFP_ALIGNED]);
-		if (val) {
-			dev_info(&ob->zdev->head.dev,
-				 "SERDES interface alignment: success\n");
+		if (val)
 			return 0;
-		}
 		udelay(OB_ALIGN_UDELAY);
 	}
 
