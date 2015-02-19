@@ -84,6 +84,13 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 		goto out;
 	}
 
+	/* If the hardware is busy, do not waste other time */
+	if(cset->flags & ZIO_CSET_HW_BUSY) {
+		dev_warn(ob->fmc->hwdev,
+			 "PAGE LOST - HW BUSY - DMA running\n");
+		goto out;
+	}
+
 	/* We are busy, we are starting DMA */
 	spin_lock_irqsave(&cset->lock, flags);
 	cset->flags |= ZIO_CSET_HW_BUSY;
@@ -109,6 +116,7 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 	}
 	/* Start DMA transfer */
 	ob_writel(ob, ob->base_dma_core, &ob_regs[DMA_CTL_START], 1);
+	ob->c_err = 0;
 
 	return;
 
@@ -207,18 +215,10 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 	page = ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_ADDR]);
 
 	dev_dbg(ob->fmc->hwdev, "Acquisition of page 0x%x\n", page);
-	/* If the hardware is busy, do not waste other time */
-	if(ob->zdev->cset[0].flags & ZIO_CSET_HW_BUSY) {
-		dev_warn(ob->fmc->hwdev,
-			 "PAGE LOST - HW BUSY - DMA running\n");
-		return IRQ_HANDLED;
-	}
-
 	if (likely((ob->zdev->cset->ti->flags & ZIO_TI_ARMED))) {
 		/* Configure and run DMA */
 		ob->last_acq_page = page;
 		ob_run_dma(ob, &ob->zdev->cset[0]);
-		ob->c_err = 0;
 	} else {
 		/* ZIO was not ready for this shot */
 		dev_warn(ob->fmc->hwdev,
