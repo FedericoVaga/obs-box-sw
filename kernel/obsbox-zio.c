@@ -95,6 +95,11 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		dev_dbg(ob->fmc->hwdev, "Stop acquisition\n");
 		zio_trigger_abort_disable(cset, 0);
 	} else { /* Start the acquisition */
+		/* Arm the ZIO trigger (we are self timed) */
+		zio_arm_trigger(cset->ti);
+		if (!(cset->ti->flags & ZIO_TI_ARMED))
+			return;
+
 		/* Reset statistics counter */
 		ob->done = 0;
 		ob->c_err = 0;
@@ -111,10 +116,7 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		if (err)
 			return;
 
-		/* Arm the ZIO trigger (we are self timed) */
-		zio_arm_trigger(cset->ti);
-		if (!(cset->ti->flags & ZIO_TI_ARMED))
-			return;
+
 		/* Finally enable the acquisition by enabling the interrupts */
 		dev_dbg(ob->fmc->hwdev, "Start acquisition\n");
 		ob_enable_irq(ob);
