@@ -234,7 +234,7 @@ int main(int argc, char **argv)
 		fprintf(stdout, "Start acquisition in streaming mode\n");
 	}
 	while (n && try) {
-		printf("Acquisizione %d (try %d)\n", n, DUMP_TRY - try);
+		printf("Acquisition %d (try %d)\n", n, DUMP_TRY - try);
 		if (!streaming) {
 			/*
 			 * In case of single-shot mode we have to start
