@@ -205,33 +205,32 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 {
 	struct fmc_device *fmc = dev_id;
 	struct ob_dev *ob = fmc_get_drvdata(fmc);
-	uint32_t status, page;
+	uint32_t status;
 
 	ob_get_irq_status(ob, irq_core_base, IRQ_ACQ_SRC, &status);
 	if (unlikely(!(status & OBS_IRQ_ACQ)))
 		return IRQ_NONE;
 
-	/* Address of the ready page */
-	page = ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_ADDR]);
-
-	dev_dbg(ob->fmc->hwdev, "Acquisition of page 0x%x\n", page);
 	if (likely((ob->zdev->cset->ti->flags & ZIO_TI_ARMED))) {
-		/* Configure and run DMA */
-		ob->last_acq_page = page;
+		/* Address of the ready page */
+		ob->last_acq_page = ob_readl(ob, ob->base_obs_core,
+					     &ob_regs[ACQ_PAGE_ADDR]);
+		dev_dbg(ob->fmc->hwdev, "Acquisition of page 0x%x\n",
+			ob->last_acq_page);
+
 		ob_run_dma(ob, &ob->zdev->cset[0]);
 	} else {
 		/* ZIO was not ready for this shot */
 		dev_warn(ob->fmc->hwdev,
-			 "ZIO trigger not configured, page lost (0x%x)\n",
-			 page);
+			 "ZIO trigger not configured, page lost\n");
 		ob->errors++;
 		ob->c_err++;
-		if(ob->c_err > 10) {
-			dev_err(ob->fmc->hwdev,
-				"ZIO is not armed for %d consecutive times. Stop acquisition\n",
-				ob->c_err);
-			ob_acquisition_command(ob, 0);
-		}
+	}
+
+	if(ob->c_err > 10) {
+		dev_err(ob->fmc->hwdev, "We got %d consecutive errors\n",
+			ob->c_err);
+		ob_acquisition_command(ob, 0);
 	}
 
 	/* ack the irq */
