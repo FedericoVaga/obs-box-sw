@@ -108,7 +108,7 @@ void print_buffer(uint8_t *buf, int start, int end)
 static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 {
 	struct zio_control zctrl;
-	struct timeval tv = {0, 1000};
+	struct timeval tv = {1, 0};
 	fd_set ctrl_set;
 	uint8_t *buf;
 	int n, i;
