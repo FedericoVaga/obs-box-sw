@@ -17,7 +17,8 @@
 #include <sys/select.h>
 #include <linux/zio-user.h>
 
-
+#define ZPATH_BUF_SET "/sys/bus/zio/devices/obsbox-%04x/cset0/current_buffer"
+#define ZPATH_BUF_VMALLOC_SIZE "/sys/bus/zio/devices/obsbox-%04x/cset0/chan0/buffer/max-buffer-kb"
 #define ZPATH_PAGE_SIZE "/sys/bus/zio/devices/obsbox-%04x/cset0/trigger/post-samples"
 #define ZPATH_BUF_FLUSH "/sys/bus/zio/devices/obsbox-%04x/cset0/chan0/buffer/flush"
 #define ZPATH_ALARMS "/sys/bus/zio/devices/obsbox-%04x/cset0/chan0/alarms"
@@ -36,6 +37,7 @@ static void help()
 	fprintf(stderr, " -r <number>: number of byte to show at the beginning/end\n");
 	fprintf(stderr, " -p <number>: acquisition page_size\n");
 	fprintf(stderr, " -n <number>: number of blocks to acquire\n");
+	fprintf(stderr, " -v <number>: use kernel vmalloc allocation with a dedicated area of <number>kiB\n");
 	fprintf(stderr, " -s: enable streaming\n");
 	exit(1);
 }
@@ -58,6 +60,25 @@ static int obd_write_cfg(const char *fmt, uint32_t devid, uint32_t value)
 	close(fd);
 
 	return (ret == 8 ? 0 : -1);
+}
+
+/**
+ * Set the buffer type ((k|v)malloc)
+ */
+static int obd_buffer_type_set(const char *fmt, uint32_t devid, char *type)
+{
+	char path[128];
+	int fd, ret;
+
+	snprintf(path, 128, fmt, devid);
+	fd = open(path, O_WRONLY);
+	if (!fd)
+		return -1;
+
+	ret = write(fd, type, strlen(type));
+	close(fd);
+
+	return (ret == strlen(type) ? 0 : -1);
 }
 
 
@@ -165,16 +186,35 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 	return n;
 }
 
+
+/**
+ * Setup vmalloc allocation
+ */
+static int obd_set_vmalloc(uint32_t devid, uint32_t size)
+{
+	int err;
+
+	err = obd_buffer_type_set(ZPATH_BUF_SET, devid, "vmalloc");
+	if (err)
+		return -1;
+	return obd_write_cfg(ZPATH_BUF_VMALLOC_SIZE, devid, size);
+}
+
+static int obd_set_kmalloc(uint32_t devid)
+{
+	return obd_buffer_type_set(ZPATH_BUF_SET, devid, "kmalloc");
+}
+
 #define DUMP_TRY 10
 int main(int argc, char **argv)
 {
 	char c, path[128];
 	int ret, streaming = 0, n = -1, fdd, fdc;
 	int reduce, try = DUMP_TRY;
-	uint32_t devid, page_size;
+	uint32_t devid, page_size, vmalloc_size = 0;
 
 	/* Parse options */
-	while ((c = getopt (argc, argv, "hd:r:p:n:s")) != -1)
+	while ((c = getopt (argc, argv, "hd:r:p:n:sv:")) != -1)
 	{
 		switch(c)
 		{
@@ -204,15 +244,32 @@ int main(int argc, char **argv)
 		case 's':
 			streaming = 1;
 			break;
+		case 'v':
+			ret = sscanf(optarg, "%d", &vmalloc_size);
+			if (ret != 1)
+				help();
+			break;
 		default:
 			help(argv[0]);
 		}
 	}
 
+	if (vmalloc_size)
+		ret = obd_set_vmalloc(devid, vmalloc_size);
+	else
+		ret = obd_set_kmalloc(devid);
+	if (ret) {
+		fprintf(stderr, "Cannot set buffer type: %s\n",
+			strerror(errno));
+		goto out;
+	}
+
 	/* Configure the acquisition */
 	ret = obd_configuration(devid, streaming, page_size);
 	if (ret){
-		fprintf(stderr, "Something wrong during the configuration: %s\n", strerror(errno));
+		fprintf(stderr,
+			"Something wrong during the configuration: %s\n",
+			strerror(errno));
 		exit(1);
 	}
 
