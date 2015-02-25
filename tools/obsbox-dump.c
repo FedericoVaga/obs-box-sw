@@ -160,6 +160,8 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 		print_buffer(buf, n - reduce, n);
 	}
 
+	free(buf);
+
 	return n;
 }
 
