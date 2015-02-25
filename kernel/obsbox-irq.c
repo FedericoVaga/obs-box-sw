@@ -88,7 +88,7 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 	/* If the hardware is busy, do not waste other time */
 	if(cset->flags & ZIO_CSET_HW_BUSY) {
 		dev_warn(ob->fmc->hwdev,
-			 "PAGE LOST - HW BUSY - DMA running\n");
+			 "PAGE LOST - DMA running\n");
 		goto out;
 	}
 
@@ -124,6 +124,7 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 		dev_err(ob->fmc->hwdev, "ZIO cannot map DMA memory (%d)\n", err);
 	        goto out_map;
 	}
+
 	/* Start DMA transfer */
 	ob_writel(ob, ob->base_dma_core, &ob_regs[DMA_CTL_START], 1);
 	ob->c_err = 0;
@@ -147,12 +148,13 @@ static void ob_get_irq_status(struct ob_dev *ob, int irq_core_base,
 {
 	/* Get current interrupts status */
 	*irq_status = ob_readl(ob, irq_core_base, &ob_regs[reg]);
-	dev_vdbg(ob->fmc->hwdev,
-		"IRQ 0x%x fired an interrupt. IRQ status register: 0x%x\n",
-		irq_core_base, *irq_status);
-	if (*irq_status)
+	if (*irq_status) {
+		dev_vdbg(ob->fmc->hwdev,
+			"IRQ 0x%x fired an interrupt. IRQ status register: 0x%x\n",
+			irq_core_base, *irq_status);
 		/* Clear current interrupts status */
 		ob_writel(ob, irq_core_base, &ob_regs[reg], *irq_status );
+	}
 }
 
 
@@ -171,6 +173,8 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	ob_get_irq_status(ob, irq_core_base, IRQ_DMA_SRC, &status);
 	if (unlikely(!status))
 		return IRQ_NONE;
+	dev_dbg(ob->fmc->hwdev, "Page acquired in block %p\n",
+		cset->chan->active_block);
 
 	/* DMA is over */
 	zio_dma_unmap_sg(ob->zdma);
@@ -193,7 +197,7 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	} else {
 		/* ERROR */
 		dev_err(ob->fmc->hwdev,
-			"Error during DMA transmission (counter %d)\n",
+			"Error during DMA transmission, re-use block for next transfer (counter %d)\n",
 			ob->errors);
 		ob->errors++;
 		ob_acquisition_command(ob, 0);
@@ -229,9 +233,10 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 		ob->c_err++;
 	}
 
-	if(ob->c_err > 10) {
-		dev_err(ob->fmc->hwdev, "We got %d consecutive errors\n",
-			ob->c_err);
+	if(unlikely(ob->c_err > 5 || ob->errors > 20)) {
+		dev_err(ob->fmc->hwdev,
+			"We got %d global errors, %d are consecutive\n",
+			ob->errors, ob->c_err);
 		ob_acquisition_command(ob, 0);
 	}
 
