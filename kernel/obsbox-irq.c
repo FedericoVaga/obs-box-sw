@@ -75,6 +75,7 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 {
 	struct zio_block *blocks[1];
 	unsigned long flags;
+	uint32_t acq_page;
 	int err;
 
 	blocks[0] = cset->chan[0].active_block;
@@ -96,6 +97,14 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 	cset->flags |= ZIO_CSET_HW_BUSY;
 	spin_unlock_irqrestore(&cset->lock, flags);
 
+	/*
+	 * Get the address now so we can print it before the dma mapping.
+	 * So, on debugging we can still mesure the dma mapping time without
+	 * print delays
+	 */
+	acq_page = ob_readl(ob, ob->base_obs_core, &ob_regs[ACQ_PAGE_ADDR]);
+	dev_dbg(ob->fmc->hwdev,	"Acquisition of page 0x%x in block %p\n",
+		acq_page, blocks[0]);
 
 	/* There is only one channel, so one blocks to transfer */
 	ob->zdma = zio_dma_alloc_sg(&cset->chan[0], ob->fmc->hwdev,
@@ -105,8 +114,9 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 	        goto out_alloc;
 	}
 
-	/* Set the correct device memory offset - is a single shot state machine */
-	ob->zdma->sg_blocks[0].dev_mem_off = ob->last_acq_page;
+	/* Set the correct device memory offset
+	   (is a single shot state machine) */
+	ob->zdma->sg_blocks[0].dev_mem_off = acq_page;
 
 	err = zio_dma_map_sg(ob->zdma, sizeof(struct gncore_dma_item),
 			     gncore_dma_fill);
@@ -173,8 +183,6 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	if (status & GNCORE_IRQ_DMA_DONE) {
 		/* DONE */
 		rearm = zio_trigger_data_done(cset);
-		dev_dbg(ob->fmc->hwdev, "Page acquired at 0x%x\n",
-			ob->last_acq_page);
 		ob->done++;
 		/* Stop acquisition if not streaming mode */
 		if (!rearm) {
@@ -212,12 +220,6 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 		return IRQ_NONE;
 
 	if (likely((ob->zdev->cset->ti->flags & ZIO_TI_ARMED))) {
-		/* Address of the ready page */
-		ob->last_acq_page = ob_readl(ob, ob->base_obs_core,
-					     &ob_regs[ACQ_PAGE_ADDR]);
-		dev_dbg(ob->fmc->hwdev, "Acquisition of page 0x%x\n",
-			ob->last_acq_page);
-
 		ob_run_dma(ob, &ob->zdev->cset[0]);
 	} else {
 		/* ZIO was not ready for this shot */

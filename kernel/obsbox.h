@@ -44,7 +44,6 @@ struct ob_dev {
 	struct zio_dma_sgt *zdma;
 
 	unsigned int cur_page_size;
-	unsigned int last_acq_page;
 	unsigned long flags;
 
 	unsigned int errors;
