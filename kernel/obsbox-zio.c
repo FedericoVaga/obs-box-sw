@@ -90,34 +90,39 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		ob->flags |= OB_FLAG_RUNNING;
 	spin_unlock_irqrestore(&ob->lock, flags);
 
-	/* Disable the interrupt in order to allow us to configure */
+	/*
+	 * Disable the interrupt and abort any previous acquisition
+	 * in order to allow us to configure
+	 */
 	ob_disable_irq(ob);
-	if (cmd == 0) { /* Stop the acquisition */
-		zio_trigger_abort_disable(cset, 0);
-	} else { /* Start the acquisition */
-		/* Reset statistics counter */
-		ob->done = 0;
-		ob->c_err = 0;
-		ob->errors = 0;
+	zio_trigger_abort_disable(cset, 0);
+	if (!cmd)
+		return;
 
-		/* reset CSR */
-		ob_align(ob);
-		err = ob_wait_aligned(ob);
-		if (err)
-			return;
+	/* Start the acquisition */
 
-		/* Configure page-size */
-		err = ob_set_page_size(ob, cset->ti->nsamples);
-		if (err)
-			return;
+	/* Reset statistics counter */
+	ob->done = 0;
+	ob->c_err = 0;
+	ob->errors = 0;
 
-		/* Arm the ZIO trigger (we are self timed) */
-		zio_arm_trigger(cset->ti);
-		if (!(cset->ti->flags & ZIO_TI_ARMED))
-			return;
+	/* reset CSR */
+	ob_align(ob);
+	err = ob_wait_aligned(ob);
+	if (err)
+		return;
 
-		ob_enable_irq(ob);
-	}
+	/* Configure page-size */
+	err = ob_set_page_size(ob, cset->ti->nsamples);
+	if (err)
+		return;
+
+	/* Arm the ZIO trigger (we are self timed) */
+	zio_arm_trigger(cset->ti);
+	if (!(cset->ti->flags & ZIO_TI_ARMED))
+		return;
+
+	ob_enable_irq(ob);
 }
 
 
