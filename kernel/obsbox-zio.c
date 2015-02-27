@@ -93,7 +93,6 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 	/* Disable the interrupt in order to allow us to configure */
 	ob_disable_irq(ob);
 	if (cmd == 0) { /* Stop the acquisition */
-		dev_dbg(ob->fmc->hwdev, "Stop acquisition\n");
 		zio_trigger_abort_disable(cset, 0);
 	} else { /* Start the acquisition */
 		/* Arm the ZIO trigger (we are self timed) */
@@ -118,8 +117,6 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 			return;
 
 
-		/* Finally enable the acquisition by enabling the interrupts */
-		dev_dbg(ob->fmc->hwdev, "Start acquisition\n");
 		ob_enable_irq(ob);
 	}
 }
@@ -136,6 +133,8 @@ static int ob_conf_set(struct device *dev, struct zio_attribute *zattr,
 
 	switch(zattr->id) {
 	case OB_PARM_RUN: /* Run/Stop acquisition */
+		dev_dbg(ob->fmc->hwdev, "%s acquisition\n",
+			usr_val ? "Start" : "Stop");
 		ob_acquisition_command(ob, !!usr_val);
 		break;
 	case OB_PARM_STREAM: /* Enable/Disable streaming */
