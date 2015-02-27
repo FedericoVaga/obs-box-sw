@@ -192,33 +192,33 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 		cset->chan->active_block);
 
 	/* DMA is over */
+	if (unlikely(!(status & GNCORE_IRQ_DMA_DONE))) {
+		zio_dma_error(ob->zdma);
+		ob->errors++;
+		ob->c_err++;
+	}
 	zio_dma_unmap_sg(ob->zdma);
 	zio_dma_free_sg(ob->zdma);
 
+	/* The block is not used anymore by the hardware */
 	spin_lock(&cset->lock);
 	cset->flags &= ~ZIO_CSET_HW_BUSY;
 	spin_unlock(&cset->lock);
 
-	if (unlikely(!(status & GNCORE_IRQ_DMA_DONE))) {
-		/* ERROR */
-		dev_err(ob->fmc->hwdev,
-			"Error during DMA transmission, re-use block for next transfer (counter %d)\n",
-			ob->errors);
-		ob->errors++;
-		ob_acquisition_command(ob, 0);
-		goto out;
-	}
-
-	/* DONE */
+	/* The acquisition is over (error or not) */
 	rearm = zio_trigger_data_done(cset);
-	ob->done++;
-	/* Stop acquisition if not streaming mode */
-	if (!rearm) {
-		dev_dbg(ob->fmc->hwdev, "Single shot mode, Stop acquisition");
-		ob_acquisition_command(ob, 0);
+
+	if (likely(status & GNCORE_IRQ_DMA_DONE)) {
+		/* Count a succesful acquisition */
+		ob->done++;
+		if (!rearm) {
+			/* Stop acquisition if not streaming mode */
+			dev_dbg(ob->fmc->hwdev,
+				"Single shot mode, Stop acquisition");
+			ob_acquisition_command(ob, 0);
+		}
 	}
 
-out:
 	ob_check_errors(ob);
 	/* ack the irq */
 	ob->fmc->op->irq_ack(ob->fmc);
