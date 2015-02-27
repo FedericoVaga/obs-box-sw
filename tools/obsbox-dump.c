@@ -11,6 +11,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -29,6 +30,10 @@
 #define ZPATH_CDEV_DATA "/dev/zio/obsbox-%04x-0-0-data"
 #define ZPATH_CDEV_CTRL "/dev/zio/obsbox-%04x-0-0-ctrl"
 
+/* Where the buffer will be mapped */
+static void *mmapaddr;
+static uint32_t vmalloc_size = 0;
+
 static void help()
 {
 	fprintf(stderr,
@@ -37,17 +42,19 @@ static void help()
 	fprintf(stderr, " -r <number>: number of byte to show at the beginning/end\n");
 	fprintf(stderr, " -p <number>: acquisition page_size\n");
 	fprintf(stderr, " -n <number>: number of blocks to acquire\n");
-	fprintf(stderr, " -v <number>: use kernel vmalloc allocation with a dedicated area of <number>kiB\n");
+	fprintf(stderr, " -v <number>: allocate <number>Bytes with vmalloc\n");
 	fprintf(stderr, " -s: enable streaming\n");
+	fprintf(stderr, " -m: use mmap to read data from a vmalloc buffer (it will not work with kmalloc)\n");
 	exit(1);
 }
 
 /**
  * it writes to sysfs attribute
  */
+#define OBD_W_BUF_LEN 16
 static int obd_write_cfg(const char *fmt, uint32_t devid, uint32_t value)
 {
-	char path[128], val[8];
+	char path[128], val[OBD_W_BUF_LEN] = {0};
 	int fd, ret;
 
 	snprintf(path, 128, fmt, devid);
@@ -55,11 +62,11 @@ static int obd_write_cfg(const char *fmt, uint32_t devid, uint32_t value)
 	if (!fd)
 		return -1;
 
-	snprintf(val, 8, "%d", value);
-	ret = write(fd, val, 8);
+	snprintf(val, OBD_W_BUF_LEN, "%d", value);
+	ret = write(fd, val, OBD_W_BUF_LEN);
 	close(fd);
 
-	return (ret == 8 ? 0 : -1);
+	return (ret == OBD_W_BUF_LEN ? 0 : -1);
 }
 
 /**
@@ -83,9 +90,28 @@ static int obd_buffer_type_set(const char *fmt, uint32_t devid, char *type)
 
 
 /**
- *
+ * Setup vmalloc allocation
  */
-static int obd_configuration(uint32_t devid, int streaming, uint32_t size)
+static int obd_set_vmalloc(uint32_t devid, uint32_t size)
+{
+	int err;
+
+	err = obd_buffer_type_set(ZPATH_BUF_SET, devid, "vmalloc");
+	if (err)
+		return -1;
+	return obd_write_cfg(ZPATH_BUF_VMALLOC_SIZE, devid, size/1024);
+}
+
+static int obd_set_kmalloc(uint32_t devid)
+{
+	return obd_buffer_type_set(ZPATH_BUF_SET, devid, "kmalloc");
+}
+
+/**
+ * Configure basic acquisition
+ */
+static int obd_configuration(uint32_t devid, int streaming, uint32_t size,
+			     uint32_t vmalloc_size)
 {
 	int ret = 0;
 
@@ -93,6 +119,15 @@ static int obd_configuration(uint32_t devid, int streaming, uint32_t size)
 	obd_write_cfg(ZPATH_CMD_RUN, devid, 0);
 	/* Disable the trigger for a safe configuration */
 	ret |= obd_write_cfg(ZPATH_TRG_EN, devid, 0);
+	if (vmalloc_size)
+		ret |= obd_set_vmalloc(devid, vmalloc_size);
+	else
+		ret |= obd_set_kmalloc(devid);
+	if (ret) {
+		fprintf(stderr, "Cannot set buffer type: %s\n",
+			strerror(errno));
+		goto out;
+	}
 	/* Clear previous alarms */
 	ret |= obd_write_cfg(ZPATH_ALARMS, devid, 0xFF);
 	/* Remove blocks from previous acquisition */
@@ -103,17 +138,21 @@ static int obd_configuration(uint32_t devid, int streaming, uint32_t size)
 	ret |= obd_write_cfg(ZPATH_PAGE_SIZE, devid, size);
 	/* Enable trigger again so we can acquire */
 	ret |= obd_write_cfg(ZPATH_TRG_EN, devid, 1);
-
+out:
 	return ret;
 }
 
+
+/**
+ * Print data from buffer
+ */
 void print_buffer(uint8_t *buf, int start, int end)
 {
 	int j;
 
 	for (j = start; j < end; j++) {
 		if (!(j & 0xf) || j == start)
-			printf("Data:");
+			printf("Data [0x%08x]:", j * 16);
 		printf(" %02x", buf[j]);
 		if ((j & 0xf) == 0xf || j == end - 1)
 			putchar('\n');
@@ -126,7 +165,8 @@ void print_buffer(uint8_t *buf, int start, int end)
  * Read and dump data from the driver
  * @return number of byte read, -1 on error and errno is appropriately set.
  */
-static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
+static int obd_block_dump(uint32_t devid, int fdd, int fdc,
+			  unsigned int reduce, unsigned int dommap)
 {
 	struct zio_control zctrl;
 	struct timeval tv = {1, 0};
@@ -161,14 +201,25 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 		obd_write_cfg(ZPATH_ALARMS, devid, 0xFF);
 	}
 
-
 	/* read data */
-	buf = malloc(zctrl.nsamples * zctrl.ssize);
-	if (!buf) {
-		fprintf(stderr, "obd-dump: cannot allocate buffer\n");
-		return -1;
+	if (dommap) {
+		/* mmap way */
+		buf = mmapaddr + zctrl.mem_offset;
+		n = zctrl.nsamples * zctrl.ssize;
+		printf("mmap %p offset 0x%x n %d - buf %p\n",
+		       mmapaddr, zctrl.mem_offset, n, buf);
+
+		fprintf(stderr, "mmap out of range %d >= %d\n",
+				zctrl.mem_offset + n, vmalloc_size);
+	} else {
+		/* read way */
+		buf = malloc(zctrl.nsamples * zctrl.ssize);
+		if (!buf) {
+			fprintf(stderr, "obd-dump: cannot allocate buffer\n");
+			return -1;
+		}
+		n = read(fdd, buf, zctrl.nsamples * zctrl.ssize);
 	}
-	n = read(fdd, buf, zctrl.nsamples * zctrl.ssize);
 
 
 	/* report data to stdout */
@@ -181,40 +232,22 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc, unsigned int reduce)
 		print_buffer(buf, n - reduce, n);
 	}
 
-	free(buf);
+	if (!dommap)
+		free(buf);
 
 	return n;
-}
-
-
-/**
- * Setup vmalloc allocation
- */
-static int obd_set_vmalloc(uint32_t devid, uint32_t size)
-{
-	int err;
-
-	err = obd_buffer_type_set(ZPATH_BUF_SET, devid, "vmalloc");
-	if (err)
-		return -1;
-	return obd_write_cfg(ZPATH_BUF_VMALLOC_SIZE, devid, size);
-}
-
-static int obd_set_kmalloc(uint32_t devid)
-{
-	return obd_buffer_type_set(ZPATH_BUF_SET, devid, "kmalloc");
 }
 
 #define DUMP_TRY 10
 int main(int argc, char **argv)
 {
 	char c, path[128];
-	int ret, streaming = 0, n = -1, fdd, fdc;
+	int ret, streaming = 0, dommap = 0, n = -1, fdd, fdc;
 	int reduce, try = DUMP_TRY;
-	uint32_t devid, page_size, vmalloc_size = 0;
+	uint32_t devid, page_size;
 
 	/* Parse options */
-	while ((c = getopt (argc, argv, "hd:r:p:n:sv:")) != -1)
+	while ((c = getopt (argc, argv, "hd:r:p:n:sv:m")) != -1)
 	{
 		switch(c)
 		{
@@ -248,24 +281,18 @@ int main(int argc, char **argv)
 			ret = sscanf(optarg, "%d", &vmalloc_size);
 			if (ret != 1)
 				help();
+			vmalloc_size; /* convert to byte*/
+			break;
+		case 'm':
+			dommap = 1;
 			break;
 		default:
 			help(argv[0]);
 		}
 	}
 
-	if (vmalloc_size)
-		ret = obd_set_vmalloc(devid, vmalloc_size);
-	else
-		ret = obd_set_kmalloc(devid);
-	if (ret) {
-		fprintf(stderr, "Cannot set buffer type: %s\n",
-			strerror(errno));
-		goto out;
-	}
-
 	/* Configure the acquisition */
-	ret = obd_configuration(devid, streaming, page_size);
+	ret = obd_configuration(devid, streaming, page_size, vmalloc_size);
 	if (ret){
 		fprintf(stderr,
 			"Something wrong during the configuration: %s\n",
@@ -285,6 +312,21 @@ int main(int argc, char **argv)
 	if (!fdd || !fdc)
 		goto out;
 
+	if (dommap) {
+		if (!vmalloc_size) {
+			fprintf(stderr,
+				"mmap(2) works only with vmalloc allocation\n");
+			goto out;
+		}
+		mmapaddr = mmap(0, vmalloc_size, PROT_READ, MAP_SHARED,
+				fdd, 0);
+		if (mmapaddr == MAP_FAILED) {
+			fprintf(stderr, "Cannot mmap buffer: %s\n",
+				strerror(errno));
+			goto out;
+		}
+	}
+
 	if (streaming) {
 		/*
 		 * In streaming mode we start the acquisition only one time
@@ -301,7 +343,8 @@ int main(int argc, char **argv)
 			 */
 			obd_write_cfg(ZPATH_CMD_RUN, devid, 1);
 		}
-		ret = obd_block_dump(devid, fdd, fdc, reduce);
+
+		ret = obd_block_dump(devid, fdd, fdc, reduce, dommap);
 		if (ret < 0)
 			break;
 		if (ret == 0) {
@@ -317,6 +360,8 @@ int main(int argc, char **argv)
 
 	if (!try)
 		fprintf(stderr, "Fail %d times to acquire a page\n", DUMP_TRY);
+	if (dommap && vmalloc_size)
+		munmap(mmapaddr, vmalloc_size);
 	close(fdd);
 	close(fdc);
 	obd_write_cfg(ZPATH_CMD_RUN, devid, 0);
