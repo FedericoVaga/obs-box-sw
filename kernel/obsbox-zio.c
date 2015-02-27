@@ -109,13 +109,18 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 	/* reset CSR */
 	ob_align(ob);
 	err = ob_wait_aligned(ob);
-	if (err)
+	if (err) {
+		dev_err(ob->fmc, "Cannot align acquisition\n");
 		return;
+	}
 
 	/* Configure page-size */
 	err = ob_set_page_size(ob, cset->ti->nsamples);
-	if (err)
+	if (err) {
+		dev_err(ob->fmc, "Cannot set acquisition page size %d\n",
+			cset->ti->nsamples);
 		return;
+	}
 
 	/* Arm the ZIO trigger (we are self timed) */
 	zio_arm_trigger(cset->ti);
