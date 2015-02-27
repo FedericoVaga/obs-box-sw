@@ -159,6 +159,21 @@ static void ob_get_irq_status(struct ob_dev *ob, int irq_core_base,
 
 
 /**
+ * Kill the acquisition if there are too many errors
+ */
+void ob_check_errors(struct ob_dev *ob)
+{
+	if(unlikely(ob->c_err < 5 && ob->errors < 20))
+		return;
+
+	dev_err(ob->fmc->hwdev,
+		"We got %d global errors, %d are consecutive\n",
+		ob->errors, ob->c_err);
+	ob_acquisition_command(ob, 0);
+}
+
+
+/**
  * It handles the DMA interrupts. On DMA done, notify to ZIO that the
  * trigger run is over and store the block of data.
  */
@@ -171,7 +186,7 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	int rearm;
 
 	ob_get_irq_status(ob, irq_core_base, IRQ_DMA_SRC, &status);
-	if (unlikely(!status))
+	if (!status)
 		return IRQ_NONE;
 	dev_dbg(ob->fmc->hwdev, "Page acquired in block %p\n",
 		cset->chan->active_block);
@@ -184,25 +199,27 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	cset->flags &= ~ZIO_CSET_HW_BUSY;
 	spin_unlock(&cset->lock);
 
-	if (status & GNCORE_IRQ_DMA_DONE) {
-		/* DONE */
-		rearm = zio_trigger_data_done(cset);
-		ob->done++;
-		/* Stop acquisition if not streaming mode */
-		if (!rearm) {
-			dev_dbg(ob->fmc->hwdev,
-				"Single shot mode, Stop acquisition");
-			ob_acquisition_command(ob, 0);
-		}
-	} else {
+	if (unlikely(!(status & GNCORE_IRQ_DMA_DONE))) {
 		/* ERROR */
 		dev_err(ob->fmc->hwdev,
 			"Error during DMA transmission, re-use block for next transfer (counter %d)\n",
 			ob->errors);
 		ob->errors++;
 		ob_acquisition_command(ob, 0);
+		goto out;
 	}
 
+	/* DONE */
+	rearm = zio_trigger_data_done(cset);
+	ob->done++;
+	/* Stop acquisition if not streaming mode */
+	if (!rearm) {
+		dev_dbg(ob->fmc->hwdev, "Single shot mode, Stop acquisition");
+		ob_acquisition_command(ob, 0);
+	}
+
+out:
+	ob_check_errors(ob);
 	/* ack the irq */
 	ob->fmc->op->irq_ack(ob->fmc);
 
@@ -220,28 +237,24 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 	uint32_t status;
 
 	ob_get_irq_status(ob, irq_core_base, IRQ_ACQ_SRC, &status);
-	if (unlikely(!(status & OBS_IRQ_ACQ)))
+	if (!(status & OBS_IRQ_ACQ))
 		return IRQ_NONE;
 
-	if (likely((ob->zdev->cset->ti->flags & ZIO_TI_ARMED))) {
-		ob_run_dma(ob, &ob->zdev->cset[0]);
-	} else {
+	if (unlikely(!(ob->zdev->cset->ti->flags & ZIO_TI_ARMED))) {
 		/* ZIO was not ready for this shot */
 		dev_warn(ob->fmc->hwdev,
 			 "ZIO trigger not configured, page lost\n");
 		ob->errors++;
 		ob->c_err++;
+		goto out;
 	}
 
-	if(unlikely(ob->c_err > 5 || ob->errors > 20)) {
-		dev_err(ob->fmc->hwdev,
-			"We got %d global errors, %d are consecutive\n",
-			ob->errors, ob->c_err);
-		ob_acquisition_command(ob, 0);
-	}
+	ob_run_dma(ob, &ob->zdev->cset[0]);
 
-	/* ack the irq */
+out:
+	ob_check_errors(ob);
 	ob->fmc->op->irq_ack(ob->fmc);
+
 	return IRQ_HANDLED;
 }
 
