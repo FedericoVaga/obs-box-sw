@@ -22,6 +22,7 @@ ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\" \
 	-I$(SPEC_SW)/kernel \
 	-I$(src)
 ccflags-$(CONFIG_OBS_BOX_DEBUG) += -DDEBUG
+ccflags-$(CONFIG_OBS_BOX_VERBOSE_DEBUG) += -DVERBOSE_DEBUG
 
 obj-m := obs-box.o
 obs-box-y = obsbox-zio.o
