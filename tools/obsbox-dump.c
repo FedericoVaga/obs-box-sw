@@ -281,7 +281,6 @@ int main(int argc, char **argv)
 			ret = sscanf(optarg, "%d", &vmalloc_size);
 			if (ret != 1)
 				help();
-			vmalloc_size; /* convert to byte*/
 			break;
 		case 'm':
 			dommap = 1;
