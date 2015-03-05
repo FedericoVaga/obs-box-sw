@@ -110,14 +110,14 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 	ob_align(ob);
 	err = ob_wait_aligned(ob);
 	if (err) {
-		dev_err(ob->fmc, "Cannot align acquisition\n");
+		dev_err(ob->fmc->hwdev, "Cannot align acquisition\n");
 		return;
 	}
 
 	/* Configure page-size */
 	err = ob_set_page_size(ob, cset->ti->nsamples);
 	if (err) {
-		dev_err(ob->fmc, "Cannot set acquisition page size %d\n",
+		dev_err(ob->fmc->hwdev, "Cannot set acquisition page size %d\n",
 			cset->ti->nsamples);
 		return;
 	}

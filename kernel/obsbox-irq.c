@@ -249,6 +249,7 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 		goto out;
 	}
 
+	/* Everything is fine, we have a page: run the DMA transfer*/
 	ob_run_dma(ob, &ob->zdev->cset[0]);
 
 out:
