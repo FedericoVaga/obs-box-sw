@@ -203,7 +203,10 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	zio_dma_free_sg(ob->zdma);
 
 	/* DMA is over */
-	if (unlikely(!(status & GNCORE_IRQ_DMA_DONE))) {
+	if (unlikely(status & GNCORE_IRQ_DMA_ERR)) {
+		dev_err(ob->fmc->hwdev,
+			"DMA error (irq 0x%x sDMA status 0x%x)\n", status,
+			ob_readl(ob, ob->base_dma_core, &ob_regs[DMA_STA]));
 		zio_dma_error(ob->zdma);
 		ob->errors++;
 		ob->c_err++;
