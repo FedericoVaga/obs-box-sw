@@ -63,10 +63,18 @@ static int gncore_dma_fill(struct zio_dma_sg *zsg)
 			  &ob_regs[DMA_BR_LAST], item->attribute);
 	}
 
-	dev_vdbg(zsg->zsgt->hwdev, "configure DMA item %d (block %d)"
-		"(addr: 0x%llx len: %d)(dev off: 0x%x) (next item: 0x%x)\n",
-		zsg->page_idx, zsg->block_idx, (long long)sg_dma_address(sg),
-		sg_dma_len(sg), zsg->dev_mem_off, item->next_addr_l);
+	dev_vdbg(zsg->zsgt->hwdev, "DMA item %d (block %d)\n"
+		 "    addr   0x%x\n"
+		 "    addr_l 0x%x\n"
+		 "    addr_h 0x%x\n"
+		 "    length %d\n"
+		 "    next_l 0x%x\n"
+		 "    next_h 0x%x\n"
+		 "    last   0x%x\n",
+		 zsg->page_idx, zsg->block_idx,
+		 item->start_addr, item->dma_addr_l, item->dma_addr_h,
+		 item->dma_len, item->next_addr_l, item->next_addr_h,
+		 item->attribute);
 
 	return 0;
 }
