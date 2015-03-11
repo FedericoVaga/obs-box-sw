@@ -193,7 +193,6 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 
 	/* DMA is over */
 	if (unlikely(!(status & GNCORE_IRQ_DMA_DONE))) {
-		zio_dma_error(ob->zdma);
 		ob->errors++;
 		ob->c_err++;
 	}
