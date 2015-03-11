@@ -199,14 +199,15 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	dev_dbg(ob->fmc->hwdev, "Page acquired in block %p\n",
 		cset->chan->active_block);
 
+	zio_dma_unmap_sg(ob->zdma);
+	zio_dma_free_sg(ob->zdma);
+
 	/* DMA is over */
 	if (unlikely(!(status & GNCORE_IRQ_DMA_DONE))) {
 		zio_dma_error(ob->zdma);
 		ob->errors++;
 		ob->c_err++;
 	}
-	zio_dma_unmap_sg(ob->zdma);
-	zio_dma_free_sg(ob->zdma);
 
 	/* The block is not used anymore by the hardware */
 	spin_lock(&cset->lock);
