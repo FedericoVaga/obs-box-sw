@@ -78,21 +78,25 @@ static int ob_fmc_probe(struct fmc_device *fmc)
 	fmc_set_drvdata(fmc, ob);
 	ob->fmc = fmc;
 
+	if (fmc->flags & FMC_DEVICE_HAS_GOLDEN || ob_fmc_drv.gw_n) {
+		if (ob_fmc_drv.gw_n)
+			fwname = "";	/* reprogram will pick from module parameter */
+		else
+			fwname = OB_DEFAULT_GATEWARE;
+		dev_info(fmc->hwdev, "Gateware (%s)\n", fwname);
 
-	if (ob_fmc_drv.gw_n)
-		fwname = "";	/* reprogram will pick from module parameter */
-	else
-		fwname = OB_DEFAULT_GATEWARE;
-	dev_info(fmc->hwdev, "Gateware (%s)\n", fwname);
-
-	/* We first write a new binary (and lm32) within the carrier */
-	err = fmc->op->reprogram(fmc, &ob_fmc_drv, fwname);
-	if (err) {
-		dev_err(fmc->hwdev, "write firmware \"%s\": error %i\n",
+		/* We first write a new binary (and lm32) within the carrier */
+		err = fmc_reprogram(fmc, &ob_fmc_drv, fwname, 0x0);
+		if (err) {
+			dev_err(fmc->hwdev, "write firmware \"%s\": error %i\n",
 				fwname, err);
-	        return err;
+			return err;
+		}
+		dev_info(fmc->hwdev, "Gateware successfully loaded\n");
+	} else {
+		dev_info(fmc->hwdev,
+			 "Gateware already there. Set the \"gateware\" parameter to overwrite the current gateware\n");
 	}
-	dev_info(fmc->hwdev, "Gateware successfully loaded\n");
 
 	err = __ob_sdb_get_device(ob);
 	if (err < 0)
