@@ -30,7 +30,7 @@ static int __ob_sdb_get_device(struct ob_dev *ob)
 	int ret;
 
 	ret = fmc_scan_sdb_tree(fmc, 0);
-	if (ret < 0) {
+	if (ret < 0 && ret != -EBUSY) {
 		dev_err(fmc->hwdev,
 			"%s: no SDB in the bitstream."
 			"Are you sure you've provided the correct one?\n",
@@ -54,7 +54,7 @@ static int __ob_sdb_get_device(struct ob_dev *ob)
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int ob_fmc_probe(struct fmc_device *fmc)
