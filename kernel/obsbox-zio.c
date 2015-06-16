@@ -73,11 +73,11 @@ static int ob_wait_aligned(struct ob_dev *ob)
 	dev_warn(&ob->zdev->head.dev,
 		 "SERDES interface alignment: fail after %dus\n",
 		 (OB_ALIGN_TRY * OB_ALIGN_UDELAY));
-	return -1;
+	return -EPERM;
 }
 
 
-void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
+int ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 {
 	struct zio_cset *cset = &ob->zdev->cset[0];
 	unsigned long flags;
@@ -97,7 +97,7 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 	ob_disable_irq(ob);
 	zio_trigger_abort_disable(cset, 0);
 	if (!cmd)
-		return;
+		return 0;
 
 	/* Start the acquisition */
 
@@ -111,7 +111,7 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 	err = ob_wait_aligned(ob);
 	if (err) {
 		dev_err(ob->fmc->hwdev, "Cannot align acquisition\n");
-		return;
+		return err;
 	}
 
 	/* Configure page-size */
@@ -119,13 +119,13 @@ void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 	if (err) {
 		dev_err(ob->fmc->hwdev, "Cannot set acquisition page size %d\n",
 			cset->ti->nsamples);
-		return;
+		return err;
 	}
 
 	/* Arm the ZIO trigger (we are self timed) */
 	zio_arm_trigger(cset->ti);
 	if (!(cset->ti->flags & ZIO_TI_ARMED))
-		return;
+		return -EBUSY;
 
 	ob_enable_irq(ob);
 }
@@ -139,16 +139,17 @@ static int ob_conf_set(struct device *dev, struct zio_attribute *zattr,
 {
 	struct zio_cset *cset = to_zio_cset(dev);
 	struct ob_dev *ob = cset->zdev->priv_d;
+	int err = 0;
 
 	switch(zattr->id) {
 	case OB_PARM_RUN: /* Run/Stop acquisition */
 		dev_dbg(ob->fmc->hwdev, "%s acquisition\n",
 			usr_val ? "Start" : "Stop");
-		ob_acquisition_command(ob, !!usr_val);
+		err = ob_acquisition_command(ob, !!usr_val);
 		break;
 	case OB_PARM_STREAM: /* Enable/Disable streaming */
 		/* Disable acquisition when mode change */
-		ob_acquisition_command(ob, 0);
+		err = ob_acquisition_command(ob, 0);
 
 		spin_lock(&cset->lock);
 		if (usr_val)
@@ -159,7 +160,7 @@ static int ob_conf_set(struct device *dev, struct zio_attribute *zattr,
 		break;
 	}
 
-	return 0;
+	return err;
 }
 
 /**

@@ -124,7 +124,7 @@ extern struct zio_driver ob_driver;
 extern int ob_init_irq(struct ob_dev *ob);
 extern void ob_exit_irq(struct ob_dev *ob);
 /* obsbox-zio.c*/
-extern void ob_acquisition_command(struct ob_dev *ob, uint32_t cmd);
+extern int ob_acquisition_command(struct ob_dev *ob, uint32_t cmd);
 
 
 static inline uint32_t ob_readl(struct ob_dev *ob,
