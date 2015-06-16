@@ -331,7 +331,12 @@ int main(int argc, char **argv)
 		 * In streaming mode we start the acquisition only one time
 		 * before the acquisition
 		 */
-		obd_write_cfg(ZPATH_CMD_RUN, devid, 1);
+		ret = obd_write_cfg(ZPATH_CMD_RUN, devid, 1);
+		if (ret < 0) {
+			fprintf(stderr, "Cannot start acquisition: %s\n",
+				strerror(errno));
+			goto out;
+		}
 		fprintf(stdout, "Start acquisition in streaming mode\n");
 	}
 	while (n && try) {
@@ -340,7 +345,14 @@ int main(int argc, char **argv)
 			 * In case of single-shot mode we have to start
 			 * the acquisition for every block
 			 */
-			obd_write_cfg(ZPATH_CMD_RUN, devid, 1);
+			ret = obd_write_cfg(ZPATH_CMD_RUN, devid, 1);
+			if (ret < 0) {
+				fprintf(stderr,
+					"Cannot start acquisition (%d): %s\n",
+					try, strerror(errno));
+				try--;
+			        continue;
+			}
 		}
 
 		ret = obd_block_dump(devid, fdd, fdc, reduce, dommap);
