@@ -125,6 +125,8 @@ static void ob_run_dma(struct ob_dev *ob, struct zio_cset *cset)
 	        goto out_map;
 	}
 
+	/* Configure Byte swapping */
+	ob_writel(ob, ob->base_dma_core, &ob_regs[DMA_CTL_SWP], 0x2);
 	/* Start DMA transfer */
 	ob_writel(ob, ob->base_dma_core, &ob_regs[DMA_CTL_START], 1);
 	ob->c_err = 0;
