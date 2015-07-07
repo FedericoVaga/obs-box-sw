@@ -40,11 +40,14 @@ static void help()
 		"Use: \"obsbox-dump -d 0x<devid> [OPTIONS]\"\n");
 	fprintf(stderr, "devid: board device id\n");
 	fprintf(stderr, " -r <number>: number of byte to show at the beginning/end\n");
-	fprintf(stderr, " -p <number>: acquisition page_size\n");
+	fprintf(stderr, " -p <number>: acquisition block page_size\n");
 	fprintf(stderr, " -n <number>: number of blocks to acquire\n");
-	fprintf(stderr, " -v <number>: allocate <number>Bytes with vmalloc\n");
+	fprintf(stderr, " -v <number>: allocate <number>Bytes with vmalloc for block's pool\n");
 	fprintf(stderr, " -s: enable streaming\n");
 	fprintf(stderr, " -m: use mmap to read data from a vmalloc buffer (it will not work with kmalloc)\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "vmalloc\n");
+	fprintf(stderr, "When you use -v option you are allocating a block's pool where the driver allocates blocks. So the vmalloc size (-v) must be greater than the block size (-p). It is suggested to use a vmalloc size which is a multiple of the block size\n");
 	exit(1);
 }
 
