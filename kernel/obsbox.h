@@ -15,7 +15,8 @@
 #define OB_MIN_PAGE_SIZE 0x0000800 /* 1MB  */
 
 #define OB_FLAG_RUNNING (1 << 0) /* Acquisition is running */
-#define OB_FLAG_STREAMING (1 << 0) /* Streaming is enabled */
+#define OB_FLAG_STREAMING (1 << 1) /* Streaming is enabled */
+#define OB_FLAG_STOPPING (1 << 2) /* Streaming is enabled */
 
 #define GNCORE_IRQ_DMA_DONE (1 << 0)
 #define GNCORE_IRQ_DMA_ERR (1 << 1)

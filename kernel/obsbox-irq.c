@@ -209,6 +209,10 @@ irqreturn_t ob_dma_irq_handler(int irq_core_base, void *dev_id)
 	/* The acquisition is over (error or not) */
 	rearm = zio_trigger_data_done(cset);
 
+	/* Do not re-arm when we have to stop the acquisition */
+	if (ob->flags & OB_FLAG_STOPPING)
+		rearm = 0;
+
 	if (likely(status & GNCORE_IRQ_DMA_DONE)) {
 		/* Count a succesful acquisition */
 		ob->done++;
@@ -240,6 +244,12 @@ irqreturn_t ob_core_irq_handler(int irq_core_base, void *dev_id)
 	ob_get_irq_status(ob, irq_core_base, IRQ_ACQ_SRC, &status);
 	if (!(status & OBS_IRQ_ACQ))
 		return IRQ_NONE;
+
+	/* Stop acquisition if we have to do it */
+	if (ob->flags & OB_FLAG_STOPPING) {
+		ob_acquisition_command(ob, 0);
+		return IRQ_HANDLED;
+	}
 
 	if (unlikely(!(ob->zdev->cset->ti->flags & ZIO_TI_ARMED))) {
 		/* ZIO was not ready for this shot */

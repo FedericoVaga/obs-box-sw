@@ -88,6 +88,7 @@ int ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		ob->flags &= ~OB_FLAG_RUNNING;
 	else
 		ob->flags |= OB_FLAG_RUNNING;
+	ob->flags &= ~OB_FLAG_STOPPING;
 	spin_unlock_irqrestore(&ob->lock, flags);
 
 	/*
@@ -128,6 +129,8 @@ int ob_acquisition_command(struct ob_dev *ob, uint32_t cmd)
 		return -EBUSY;
 
 	ob_enable_irq(ob);
+
+	return 0;
 }
 
 
@@ -139,13 +142,26 @@ static int ob_conf_set(struct device *dev, struct zio_attribute *zattr,
 {
 	struct zio_cset *cset = to_zio_cset(dev);
 	struct ob_dev *ob = cset->zdev->priv_d;
+	unsigned long flags;
 	int err = 0;
 
 	switch(zattr->id) {
 	case OB_PARM_RUN: /* Run/Stop acquisition */
 		dev_dbg(ob->fmc->hwdev, "%s acquisition\n",
 			usr_val ? "Start" : "Stop");
-		err = ob_acquisition_command(ob, !!usr_val);
+		if (usr_val) {
+			err = ob_acquisition_command(ob, 1);
+		} else {
+			if (ob->flags & OB_FLAG_STOPPING) {
+				err = -EBUSY;
+				dev_warn(ob->fmc->hwdev,
+					 "Acquisition stop already programmed\n");
+				break;
+			}
+			spin_lock_irqsave(&ob->lock, flags);
+			ob->flags |= OB_FLAG_STOPPING;
+			spin_unlock_irqrestore(&ob->lock, flags);
+		}
 		break;
 	case OB_PARM_STREAM: /* Enable/Disable streaming */
 		/* Disable acquisition when mode change */
