@@ -33,6 +33,7 @@
 /* Where the buffer will be mapped */
 static void *mmapaddr;
 static uint32_t vmalloc_size = 0;
+static int raw = 0;
 
 static void help()
 {
@@ -45,6 +46,7 @@ static void help()
 	fprintf(stderr, " -v <number>: allocate <number>Bytes with vmalloc for block's pool\n");
 	fprintf(stderr, " -s: enable streaming\n");
 	fprintf(stderr, " -m: use mmap to read data from a vmalloc buffer (it will not work with kmalloc)\n");
+	fprintf(stderr, " -R: dump binary data\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "vmalloc\n");
 	fprintf(stderr, "When you use -v option you are allocating a block's pool where the driver allocates blocks. So the vmalloc size (-v) must be greater than the block size (-p). It is suggested to use a vmalloc size which is a multiple of the block size\n");
@@ -224,6 +226,11 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc,
 		n = read(fdd, buf, zctrl.nsamples * zctrl.ssize);
 	}
 
+	/* Print raw binary data */
+	if (raw) {
+		write(STDOUT_FILENO, buf, zctrl.nsamples * zctrl.ssize);
+		return n;
+	}
 
 	/* report data to stdout */
 	fprintf(stdout, "Page number %d\n", zctrl.seq_num);
@@ -250,7 +257,7 @@ int main(int argc, char **argv)
 	uint32_t devid, page_size;
 
 	/* Parse options */
-	while ((c = getopt (argc, argv, "hd:r:p:n:sv:m")) != -1)
+	while ((c = getopt (argc, argv, "hd:r:p:n:sv:mR")) != -1)
 	{
 		switch(c)
 		{
@@ -287,6 +294,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			dommap = 1;
+			break;
+		case 'R':
+			raw = 1;
 			break;
 		default:
 			help(argv[0]);
@@ -340,7 +350,8 @@ int main(int argc, char **argv)
 				strerror(errno));
 			goto out;
 		}
-		fprintf(stdout, "Start acquisition in streaming mode\n");
+		if (!raw)
+			fprintf(stdout, "Start acquisition in streaming mode\n");
 	}
 	while (n && try) {
 		if (!streaming) {
