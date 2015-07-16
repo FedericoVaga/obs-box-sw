@@ -28,7 +28,7 @@ static struct zio_attribute ob_cset_ext_zattr[] = {
 	 * 0: stop
 	 * 1: start/restart
 	 */
-	ZIO_PARAM_EXT("ob-run", ZIO_WO_PERM, OB_PARM_RUN, 0),
+	ZIO_PARAM_EXT("ob-run", ZIO_RW_PERM, OB_PARM_RUN, 0),
 	/*
 	 * 0: single shot
 	 * 1: streaming
