@@ -24,6 +24,10 @@ ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\" \
 ccflags-$(CONFIG_OBS_BOX_DEBUG) += -DDEBUG
 ccflags-$(CONFIG_OBS_BOX_VERBOSE_DEBUG) += -DVERBOSE_DEBUG
 
+# Extract ZIO minimum compatible version
+ccflags-y += -D__ZIO_MIN_MAJOR_VERSION=$(shell echo $(ZIO_VERSION) | cut -d '-' -f 2 | cut -d '.' -f 1; )
+ccflags-y += -D__ZIO_MIN_MINOR_VERSION=$(shell echo $(ZIO_VERSION) | cut -d '-' -f 2 | cut -d '.' -f 2; )
+
 obj-m := obs-box.o
 obs-box-y = obsbox-zio.o
 obs-box-y += obsbox-irq.o

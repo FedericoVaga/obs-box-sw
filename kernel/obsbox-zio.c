@@ -313,4 +313,9 @@ struct zio_driver ob_driver = {
 	.id_table	= ob_table,
 	.probe		= ob_probe,
 	.remove		= ob_remove,
+	/* Take the version from ZIO git sub-module */
+	.min_version = ZIO_VERSION(__ZIO_MIN_MAJOR_VERSION,
+				   __ZIO_MIN_MINOR_VERSION,
+				   0), /* Change it if you use new features from
+					  a specific patch */
 };
