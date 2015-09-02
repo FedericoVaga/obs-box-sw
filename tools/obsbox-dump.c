@@ -229,7 +229,7 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc,
 	/* Print raw binary data */
 	if (raw) {
 		write(STDOUT_FILENO, buf, zctrl.nsamples * zctrl.ssize);
-		return n;
+		goto out;
 	}
 
 	/* report data to stdout */
@@ -241,7 +241,7 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc,
 		printf("    ...\n\n");
 		print_buffer(buf, n - reduce, n);
 	}
-
+ out:
 	if (!dommap)
 		free(buf);
 
