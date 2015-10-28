@@ -1,9 +1,18 @@
 LINUX ?= /lib/modules/$(shell uname -r)/build
-ZIO ?= $(src)/../zio
-SPEC_SW ?= $(src)/../spec-sw
-FMC_BUS ?= $(src)/../fmc-bus
+ZIO ?= ../zio
+FMC_BUS ?= ../fmc-bus
+SPEC_SW ?= ../spec-sw
 
-GIT_VERSION = $(shell cd $(src); git describe --always --dirty --long --tags)
+export ZIO
+export FMC_BUS
+export SPEC_SW
+
+GIT_VERSION = $(shell git describe --always --dirty --long --tags)
+export GIT_VERSION
+
+ZIO_VERSION = $(shell cd $(ZIO); git describe --always --dirty --long --tags)
+export ZIO_VERSION
+
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
