@@ -1,3 +1,7 @@
+# include parent_common.mk for buildsystem's defines
+# use absolute path for REPO_PARENT
+REPO_PARENT=$(shell /bin/pwd)/..
+-include $(REPO_PARENT)/parent_common.mk
 
 .PHONY: all clean modules install modules_install clean_all
 .PHONY: gitmodules prereq prereq_install prereq_install_warn prereq_clean
