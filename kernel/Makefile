@@ -3,36 +3,7 @@ ZIO ?= $(src)/../zio
 SPEC_SW ?= $(src)/../spec-sw
 FMC_BUS ?= $(src)/../fmc-bus
 
-KBUILD_EXTRA_SYMBOLS := \
-	$(ZIO)/Module.symvers \
-	$(FMC_BUS)/kernel/Module.symvers
-
 GIT_VERSION = $(shell cd $(src); git describe --always --dirty --long --tags)
-
-# For this CSM_VERSION, please see ohwr.org/csm documentation
-ifdef CONFIG_CSM_VERSION
-  ccflags-y += -D"CERN_SUPER_MODULE=MODULE_VERSION(\"$(CONFIG_CSM_VERSION)\")"
-else
-  ccflags-y += -DCERN_SUPER_MODULE=""
-endif
-
-ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\" \
-	-I$(ZIO)/include \
-	-I$(FMC_BUS)/kernel/include \
-	-I$(SPEC_SW)/kernel \
-	-I$(src)
-ccflags-$(CONFIG_OBS_BOX_DEBUG) += -DDEBUG
-ccflags-$(CONFIG_OBS_BOX_VERBOSE_DEBUG) += -DVERBOSE_DEBUG
-
-# Extract ZIO minimum compatible version
-ccflags-y += -D__ZIO_MIN_MAJOR_VERSION=$(shell echo $(ZIO_VERSION) | cut -d '-' -f 2 | cut -d '.' -f 1; )
-ccflags-y += -D__ZIO_MIN_MINOR_VERSION=$(shell echo $(ZIO_VERSION) | cut -d '-' -f 2 | cut -d '.' -f 2; )
-
-obj-m := obs-box.o
-obs-box-y = obsbox-zio.o
-obs-box-y += obsbox-irq.o
-obs-box-y += obsbox-fmc.o
-obs-box-y += obsbox-regtable.o
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
