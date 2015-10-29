@@ -1,6 +1,6 @@
 KBUILD_EXTRA_SYMBOLS := \
-	$(ZIO)/Module.symvers \
-	$(FMC_BUS)/kernel/Module.symvers
+	$(ZIO_ABS)/Module.symvers \
+	$(FMC_BUS_ABS)/kernel/Module.symvers
 
 # For this CSM_VERSION, please see ohwr.org/csm documentation
 ifdef CONFIG_CSM_VERSION
@@ -10,9 +10,9 @@ else
 endif
 
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\" \
-	-I$(ZIO)/include \
-	-I$(FMC_BUS)/kernel/include \
-	-I$(SPEC_SW)/kernel \
+	-I$(ZIO_ABS)/include \
+	-I$(FMC_BUS_ABS)/kernel/include \
+	-I$(SPEC_SW_ABS)/kernel \
 	-I$(src)
 ccflags-$(CONFIG_OBS_BOX_DEBUG) += -DDEBUG
 ccflags-$(CONFIG_OBS_BOX_VERBOSE_DEBUG) += -DVERBOSE_DEBUG

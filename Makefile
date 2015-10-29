@@ -27,16 +27,21 @@ gitmodules:
 # pathnames, and thus won't build elsewhere. We have it as a submodule to
 # find needed headers to build kernel code.
 #
+FMC_BUS ?= fmc-bus
+ZIO ?= zio
+SPEC_SW ?= spec-sw
 # Use the absolute path so it can be used by submodule
-CURDIR ?= $(shell pwd)
-FMC_BUS ?= $(CURDIR)/fmc-bus
-export FMC_BUS
-ZIO ?= $(CURDIR)/zio
-export ZIO
-ZIO_VERSION = $(shell cd $(ZIO); git describe --always --dirty --long --tags)
-export ZIO_VERSION
-SPEC_SW ?= $(CURDIR)/spec-sw
-SUBMOD = $(FMC_BUS) $(ZIO) $(SPEC_SW)
+# FMC_BUS_ABS, ZIO_ABS and SPEC_SW_ABS has to be absolut path,
+# due to beeing passed to the Kbuild
+FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
+ZIO_ABS ?= $(abspath $(ZIO) )
+SPEC_SW_ABS ?= $(abspath $(SPEC_SW) )
+
+export FMC_BUS_ABS
+export ZIO_ABS
+export SPEC_SW_ABS
+
+SUBMOD = $(FMC_BUS_ABS) $(ZIO_ABS) $(SPEC_SW_ABS)
 
 prereq:
 	for d in $(SUBMOD); do $(MAKE) -C $$d || exit 1; done
