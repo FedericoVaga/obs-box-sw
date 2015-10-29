@@ -132,11 +132,13 @@ static int ob_fmc_remove(struct fmc_device *fmc)
 	return 0;
 }
 
+/*
 static struct fmc_fru_id ob_fru_id[] = {
 	{
 		.product_name = "ObsBox",
 	},
 };
+*/
 
 static struct fmc_driver ob_fmc_drv = {
 	.version = FMC_VERSION,
