@@ -193,4 +193,4 @@ MODULE_AUTHOR("Federico Vaga <federico.vaga@cern.com>");
 MODULE_DESCRIPTION("OBS-BOX driver for ZIO framework");
 MODULE_LICENSE("GPL v2");
 
-CERN_SUPER_MODULE;
+ADDITIONAL_VERSIONS;

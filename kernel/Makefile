@@ -18,8 +18,13 @@ SPEC_SW_ABS ?= $(abspath $(SPEC_SW) )
 GIT_VERSION = $(shell git describe --always --dirty --long --tags)
 export GIT_VERSION
 
-ZIO_VERSION = $(shell cd $(ZIO_ABS); git describe --always --dirty --long --tags)
+FMC_BUS_VERSION ?= $(shell cd $(FMC_BUS_ABS); git describe --always --dirty --long --tags)
+ZIO_VERSION     ?= $(shell cd $(ZIO_ABS);     git describe --always --dirty --long --tags)
+SPEC_SW_VERSION ?= $(shell cd $(SPEC_SW_ABS); git describe --always --dirty --long --tags)
+
+export FMC_BUS_VERSION
 export ZIO_VERSION
+export SPEC_SW_VERSION
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(CURDIR) FMC_BUS_ABS=$(FMC_BUS_ABS) \
