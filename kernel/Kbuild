@@ -1,0 +1,35 @@
+KBUILD_EXTRA_SYMBOLS := \
+	$(ZIO_ABS)/Module.symvers \
+	$(FMC_BUS_ABS)/kernel/Module.symvers
+
+# add versions of supermodule. It is useful when svec-sw is included as sub-module
+# of a bigger project that we want to track
+ifdef CONFIG_SUPER_REPO
+ifdef CONFIG_SUPER_REPO_VERSION
+SUBMODULE_VERSIONS += MODULE_INFO(version_$(CONFIG_SUPER_REPO),\"$(CONFIG_SUPER_REPO_VERSION)\");
+endif
+endif
+# add versions of used submodules
+SUBMODULE_VERSIONS += MODULE_INFO(version_fmc_bus,\"$(FMC_BUS_VERSION)\");
+SUBMODULE_VERSIONS += MODULE_INFO(version_zio,\"$(ZIO_VERSION)\");
+SUBMODULE_VERSIONS += MODULE_INFO(version_spec_sw,\"$(SPEC_SW_VERSION)\");
+
+ccflags-y += -DADDITIONAL_VERSIONS="$(SUBMODULE_VERSIONS)"
+
+ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\" \
+	-I$(ZIO_ABS)/include \
+	-I$(FMC_BUS_ABS)/kernel/include \
+	-I$(SPEC_SW_ABS)/kernel \
+	-I$(src)
+ccflags-$(CONFIG_OBS_BOX_DEBUG) += -DDEBUG
+ccflags-$(CONFIG_OBS_BOX_VERBOSE_DEBUG) += -DVERBOSE_DEBUG
+
+# Extract ZIO minimum compatible version
+ccflags-y += -D__ZIO_MIN_MAJOR_VERSION=$(shell echo $(ZIO_VERSION) | cut -d '-' -f 2 | cut -d '.' -f 1; )
+ccflags-y += -D__ZIO_MIN_MINOR_VERSION=$(shell echo $(ZIO_VERSION) | cut -d '-' -f 2 | cut -d '.' -f 2; )
+
+obj-m := obs-box.o
+obs-box-y = obsbox-zio.o
+obs-box-y += obsbox-irq.o
+obs-box-y += obsbox-fmc.o
+obs-box-y += obsbox-regtable.o

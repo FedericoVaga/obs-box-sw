@@ -1,41 +1,48 @@
+# include parent_common.mk for buildsystem's defines
+# use absolute path for REPO_PARENT
+REPO_PARENT=$(shell /bin/pwd)/..
+-include $(REPO_PARENT)/parent_common.mk
 
-.PHONY: all clean modules install modules_install clean_all
-.PHONY: gitmodules prereq prereq_install prereq_install_warn prereq_clean
+all: kernel tools
 
-DIRS = kernel tools
+FMC_BUS ?= fmc-bus
+ZIO ?= zio
+SPEC_SW ?= spec-sw
 
-all clean modules install modules_install: gitmodules
-	@if echo $@ | grep -q install; then $(MAKE) prereq_install_warn; fi
-	for d in $(DIRS); do $(MAKE) -C $$d $@ || exit 1; done
-
-all modules: prereq
-
-clean_all: clean prereq_clean
-
-#### The following targets are used to manage prerequisite repositories
-#### only for THIS repository
-gitmodules:
-	@test -d fmc-bus/doc || echo "Checking out submodules"
-	@test -d fmc-bus/doc || git submodule update --init
-
-# The user can override, using environment variables, the place for our
-# three submodules. Note that svec-sw is not built, as it uses cern-internal
-# pathnames, and thus won't build elsewhere. We have it as a submodule to
-# find needed headers to build kernel code.
-#
 # Use the absolute path so it can be used by submodule
-CURDIR ?= $(shell pwd)
-FMC_BUS ?= $(CURDIR)/fmc-bus
-export FMC_BUS
-ZIO ?= $(CURDIR)/zio
-export ZIO
-ZIO_VERSION = $(shell cd $(ZIO); git describe --always --dirty --long --tags)
-export ZIO_VERSION
-SPEC_SW ?= $(CURDIR)/spec-sw
-SUBMOD = $(FMC_BUS) $(ZIO) $(SPEC_SW)
+# FMC_BUS_ABS, ZIO_ABS and SPEC_SW_ABS has to be absolut path,
+# due to beeing passed to the Kbuild
+FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
+ZIO_ABS ?= $(abspath $(ZIO) )
+SPEC_SW_ABS ?= $(abspath $(SPEC_SW) )
 
-prereq:
-	for d in $(SUBMOD); do $(MAKE) -C $$d || exit 1; done
+export FMC_BUS_ABS
+export ZIO_ABS
+export SPEC_SW_ABS
+
+DIRS = $(FMC_BUS_ABS) $(ZIO_ABS) $(SPEC_SW_ABS) kernel tools
+
+$(SPEC_SW_ABS): $(FMC_BUS_ABS)
+kernel: $(FMC_BUS_ABS) $(ZIO_ABS) $(SPEC_SW_ABS)
+
+.PHONY: all clean modules install modules_install $(DIRS)
+.PHONY: gitmodules prereq_install prereq_install_warn
+
+install modules_install: prereq_install_warn
+
+all clean modules install modules_install: $(DIRS)
+
+clean: TARGET = clean
+modules: TARGET = modules
+install: TARGET = install
+modules_install: TARGET = modules_install
+
+
+$(DIRS):
+	$(MAKE) -C $@ $(TARGET)
+
+
+SUBMOD = $(FMC_BUS_ABS) $(ZIO_ABS) $(SPEC_SW_ABS)
 
 prereq_install_warn:
 	@test -f .prereq_installed || \
@@ -45,5 +52,18 @@ prereq_install:
 	for d in $(SUBMOD); do $(MAKE) -C $$d modules_install || exit 1; done
 	touch .prereq_installed
 
-prereq_clean:
-	for d in $(SUBMOD); do $(MAKE) -C $$d clean || exit 1; done
+$(FMC_BUS_ABS): fmc-bus-init_repo
+$(ZIO_ABS): zio-init_repo
+$(SPEC_SW_ABS): spec-sw-init_repo
+
+# init submodule if missing
+fmc-bus-init_repo:
+	@test -d $(FMC_BUS_ABS)/doc || ( echo "Checking out submodule $(FMC_BUS_ABS)" && git submodule update --init $(FMC_BUS_ABS) )
+
+# init submodule if missing
+zio-init_repo:
+	@test -d $(ZIO_ABS)/doc || ( echo "Checking out submodule $(ZIO_ABS)" && git submodule update --init $(ZIO_ABS) )
+
+# init submodule if missing
+spec-sw-init_repo:
+	@test -d $(SPEC_SW_ABS)/doc || ( echo "Checking out submodule $(SPEC_SW_ABS)" && git submodule update --init $(SPEC_SW_ABS) )
