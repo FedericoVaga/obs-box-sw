@@ -30,6 +30,9 @@
 #define ZPATH_CDEV_DATA "/dev/zio/obsbox-%04x-0-0-data"
 #define ZPATH_CDEV_CTRL "/dev/zio/obsbox-%04x-0-0-ctrl"
 
+static char git_version[] = "version: " GIT_VERSION;
+static char zio_git_version[] = "zio version: " ZIO_GIT_VERSION;
+
 /* Where the buffer will be mapped */
 static void *mmapaddr;
 static uint32_t vmalloc_size = 0;
@@ -47,6 +50,7 @@ static void help()
 	fprintf(stderr, " -s: enable streaming\n");
 	fprintf(stderr, " -m: use mmap to read data from a vmalloc buffer (it will not work with kmalloc)\n");
 	fprintf(stderr, " -R: dump binary data\n");
+	fprintf(stderr, " -V: print version\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "vmalloc\n");
 	fprintf(stderr, "When you use -v option you are allocating a block's pool where the driver allocates blocks. So the vmalloc size (-v) must be greater than the block size (-p). It is suggested to use a vmalloc size which is a multiple of the block size\n");
@@ -248,6 +252,12 @@ static int obd_block_dump(uint32_t devid, int fdd, int fdc,
 	return n;
 }
 
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+	printf("%s\n", zio_git_version);
+}
+
 #define DUMP_TRY 10
 int main(int argc, char **argv)
 {
@@ -257,7 +267,7 @@ int main(int argc, char **argv)
 	uint32_t devid, page_size;
 
 	/* Parse options */
-	while ((c = getopt (argc, argv, "hd:r:p:n:sv:mR")) != -1)
+	while ((c = getopt (argc, argv, "hd:r:p:n:sv:mRV")) != -1)
 	{
 		switch(c)
 		{
@@ -298,6 +308,9 @@ int main(int argc, char **argv)
 		case 'R':
 			raw = 1;
 			break;
+		case 'V':
+			print_version(argv[0]);
+			exit(0);;
 		default:
 			help(argv[0]);
 		}
